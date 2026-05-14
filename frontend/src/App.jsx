@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import ParceiroDashboard from './pages/ParceiroDashboard';
+import ParceiroHome from './pages/ParceiroHome';
 import PlayerView from './pages/PlayerView';
 import Register from './pages/Register';
 
@@ -25,7 +26,23 @@ function App() {
         } 
       />
       <Route 
-        path="/parceiro/*" 
+        path="/parceiro" 
+        element={
+          <ProtectedRoute allowedRoles={['PARCEIRO']}>
+            <ParceiroHome />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/parceiro/upload" 
+        element={
+          <ProtectedRoute allowedRoles={['PARCEIRO']}>
+            <ParceiroDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/parceiro/campanhas" 
         element={
           <ProtectedRoute allowedRoles={['PARCEIRO']}>
             <ParceiroDashboard />

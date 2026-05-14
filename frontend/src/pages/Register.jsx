@@ -37,7 +37,7 @@ const Register = () => {
     try {
       await axios.post('http://127.0.0.1:8000/api/register/', formData);
       setSuccess(true);
-      setTimeout(() => navigate('/login'), 3000);
+      setTimeout(() => navigate('/login'), 2000);
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao realizar cadastro. Verifique os dados.');
     }
