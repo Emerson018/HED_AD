@@ -12,8 +12,8 @@ import {
   Stack,
   Skeleton
 } from '@mui/material';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
-import AssessmentIcon from '@mui/icons-material/Assessment';
+import AddCircleIcon from '@mui/icons-material/AddCircle';
+import BarChartIcon from '@mui/icons-material/BarChart';
 import CampaignIcon from '@mui/icons-material/Campaign';
 
 const ParceiroHome = () => {
@@ -93,7 +93,7 @@ const ParceiroHome = () => {
             fullWidth 
             variant="outlined" 
             size="large" 
-            startIcon={<AddCircleOutlineIcon />}
+            startIcon={<AddCircleIcon />}
             onClick={() => navigate('/parceiro/upload')}
             sx={{ py: 3, borderRadius: 3, borderWidth: 2, '&:hover': { borderWidth: 2 } }}
           >
