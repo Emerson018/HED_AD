@@ -63,3 +63,29 @@ class TVPlaylistView(APIView):
         campanhas_ativas = Campanha.objects.filter(status='APROVADA')
         serializer = CampanhaSerializer(campanhas_ativas, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class RegisterView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        data = request.data
+        try:
+            # 1. Criar o Usuário
+            user = Usuario.objects.create_user(
+                username=data['username'],
+                password=data['password'],
+                email=data.get('email', ''),
+                tipo_usuario='PARCEIRO'
+            )
+            
+            # 2. Criar o Perfil de Parceiro associado
+            Parceiro.objects.create(
+                usuario=user,
+                nome_empresa=data['nome_empresa'],
+                cnpj=data.get('cnpj', ''),
+                telefone=data.get('telefone', '')
+            )
+            
+            return Response({"message": "Usuário criado com sucesso!"}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

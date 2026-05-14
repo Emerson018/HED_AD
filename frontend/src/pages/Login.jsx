@@ -97,6 +97,11 @@ const Login = () => {
             >
               Entrar no Sistema
             </Button>
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Typography variant="body2">
+                Ainda não é parceiro? <Link to="/register" style={{ textDecoration: 'none', color: '#1976d2', fontWeight: 'bold' }}>Cadastre-se aqui</Link>
+              </Typography>
+            </Box>
           </Box>
         </Paper>
       </Box>

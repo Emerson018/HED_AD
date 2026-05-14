@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import ParceiroDashboard from './pages/ParceiroDashboard';
 import PlayerView from './pages/PlayerView';
+import Register from './pages/Register';
 
 const NotFound = () => <div style={{ padding: '2rem' }}><h2>Página não encontrada</h2></div>;
 
@@ -13,6 +14,7 @@ function App() {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
       <Route path="/tv/player/:token" element={<PlayerView />} />
       <Route 
         path="/admin/*" 
