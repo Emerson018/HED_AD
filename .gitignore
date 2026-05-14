@@ -1,0 +1,25 @@
+# Python / Ambiente Virtual
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Django
+*.sqlite3
+db.sqlite3
+
+# Variáveis de Ambiente
+.env
+.env.local
+.env.*.local
+
+# IDEs / Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

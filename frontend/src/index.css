@@ -1,0 +1,21 @@
+:root {
+  /* Paleta de Cores Institucionais HED (Ainda úteis para referências rápidas) */
+  --color-primary-dark: #003B67;
+  --color-gray-light: #d3d3d3;
+  --color-cyan: #068dbd;
+  --color-blue-mid: #2b6ea2;
+}
+
+/* MUI CssBaseline já cuida da maior parte do reset.
+   Adicionamos apenas ajustes finos se necessário. */
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f4f7f6;
+}
+
+#root {
+  width: 100%;
+}
