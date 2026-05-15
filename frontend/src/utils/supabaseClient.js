@@ -16,16 +16,25 @@ export const uploadMidia = async (file) => {
   if (!supabase) throw new Error("Supabase não configurado no .env");
 
   const fileExt = file.name.split('.').pop();
-  const fileName = `${Math.random()}.${fileExt}`;
+  const fileName = `${Date.now()}-${Math.floor(Math.random() * 1000)}.${fileExt}`;
   const filePath = `uploads/${fileName}`;
+
+  console.log(`Iniciando upload de ${file.name} (${file.type}) para o Supabase...`);
 
   const { data, error } = await supabase.storage
     .from('campanhas_midia')
-    .upload(filePath, file);
+    .upload(filePath, file, {
+      contentType: file.type,
+      cacheControl: '3600',
+      upsert: false
+    });
 
   if (error) {
+    console.error("Erro detalhado do Supabase Storage:", error);
     throw error;
   }
+
+  console.log("Upload concluído com sucesso:", data);
 
   // Pega a URL pública
   const { data: publicData } = supabase.storage

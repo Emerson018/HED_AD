@@ -7,7 +7,9 @@ from .views import (
     MidiaViewSet, 
     AgendamentoViewSet,
     TVPlaylistView,
-    RegisterView
+    RegisterView,
+    MeView,
+    PlayerLogView
 )
 
 router = DefaultRouter()
@@ -19,6 +21,8 @@ router.register(r'agendamentos', AgendamentoViewSet, basename='agendamento')
 
 urlpatterns = [
     path('tv/playlist/', TVPlaylistView.as_view(), name='tv_playlist'),
+    path('player/log/', PlayerLogView.as_view(), name='player_log'),
     path('register/', RegisterView.as_view(), name='register'),
+    path('me/', MeView.as_view(), name='me'),
     path('', include(router.urls)),
 ]

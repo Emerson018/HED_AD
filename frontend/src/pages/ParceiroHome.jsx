@@ -15,9 +15,11 @@ import {
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import CampaignIcon from '@mui/icons-material/Campaign';
+// LogoutIcon removido pois está no Layout
+
 
 const ParceiroHome = () => {
-  const [stats, setStats] = useState({ total: 0, aprovadas: 0, pendentes: 0 });
+  const [stats, setStats] = useState({ total: 0, aprovadas: 0, pendentes: 0, totalExibicoes: 0 });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -30,6 +32,7 @@ const ParceiroHome = () => {
           total: data.length,
           aprovadas: data.filter(c => c.status === 'APROVADA').length,
           pendentes: data.filter(c => c.status === 'EM_ANALISE').length,
+          totalExibicoes: data.reduce((acc, curr) => acc + (curr.total_exibicoes || 0), 0)
         });
       } catch (err) {
         console.error("Erro ao buscar estatísticas", err);
@@ -40,45 +43,85 @@ const ParceiroHome = () => {
     fetchStats();
   }, []);
 
+  // handleLogout removido pois está no Layout
+
+
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 2 }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
-          Bem-vindo à sua Área de Cliente
+          Início
         </Typography>
         <Typography variant="body1" color="textSecondary">
-          Aqui você pode gerenciar suas campanhas e acompanhar o status de exibição no hospital.
+          Acompanhe o desempenho e status das suas campanhas.
         </Typography>
       </Box>
 
       {/* Cards de Resumo */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={4}>
-          <Card sx={{ bgcolor: 'primary.main', color: 'white', borderRadius: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            bgcolor: 'primary.main', 
+            color: 'white', 
+            borderRadius: 3,
+            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
+          }}>
             <CardContent>
-              <Typography variant="h6">Total de Campanhas</Typography>
+              <Typography variant="subtitle1" fontWeight="bold">Total de Campanhas</Typography>
               {loading ? <Skeleton variant="text" width={40} height={60} /> : (
-                <Typography variant="h2" fontWeight="bold">{stats.total}</Typography>
+                <Typography variant="h3" fontWeight="bold" sx={{ color: '#fff' }}>{stats.total}</Typography>
               )}
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
-          <Card sx={{ bgcolor: '#2e7d32', color: 'white', borderRadius: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            bgcolor: '#2e7d32', 
+            color: 'white', 
+            borderRadius: 3,
+            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
+          }}>
             <CardContent>
-              <Typography variant="h6">Ativas na TV</Typography>
+              <Typography variant="subtitle1" fontWeight="bold">Ativas na TV</Typography>
               {loading ? <Skeleton variant="text" width={40} height={60} /> : (
-                <Typography variant="h2" fontWeight="bold">{stats.aprovadas}</Typography>
+                <Typography variant="h3" fontWeight="bold" sx={{ color: '#fff' }}>{stats.aprovadas}</Typography>
               )}
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
-          <Card sx={{ bgcolor: '#ed6c02', color: 'white', borderRadius: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            bgcolor: '#ed6c02', 
+            color: 'white', 
+            borderRadius: 3,
+            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
+          }}>
             <CardContent>
-              <Typography variant="h6">Em Análise</Typography>
+              <Typography variant="subtitle1" fontWeight="bold">Em Análise</Typography>
               {loading ? <Skeleton variant="text" width={40} height={60} /> : (
-                <Typography variant="h2" fontWeight="bold">{stats.pendentes}</Typography>
+                <Typography variant="h3" fontWeight="bold" sx={{ color: '#fff' }}>{stats.pendentes}</Typography>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            bgcolor: '#068dbd', 
+            color: 'white', 
+            borderRadius: 3,
+            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
+          }}>
+            <CardContent>
+              <Typography variant="subtitle1" fontWeight="bold">Exibições (Mês)</Typography>
+              {loading ? <Skeleton variant="text" width={40} height={60} /> : (
+                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                  <Typography variant="h3" fontWeight="bold" sx={{ color: '#fff' }}>{stats.totalExibicoes}</Typography>
+                  <BarChartIcon sx={{ color: 'rgba(255,255,255,0.5)' }} />
+                </Box>
               )}
             </CardContent>
           </Card>
@@ -109,7 +152,7 @@ const ParceiroHome = () => {
             onClick={() => navigate('/parceiro/campanhas')}
             sx={{ py: 3, borderRadius: 3, borderWidth: 2, '&:hover': { borderWidth: 2 } }}
           >
-            Ver Minhas Mídias
+            Ver Minhas Campanhas
           </Button>
         </Grid>
       </Grid>

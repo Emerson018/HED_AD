@@ -84,23 +84,33 @@ const PlayerView = () => {
     initPlayer();
   }, [token]);
 
-  // Motor de Loop (Avança de acordo com o Agendamento)
-  useEffect(() => {
-    if (playlist.length === 0 || loading) return;
-
+  const handleNext = async () => {
+    if (playlist.length === 0) return;
     const campanhaAtual = playlist[currentIndex];
     
-    // Calcula duração (Pega do Agendamento ou fallback pra 15s)
-    let duracao = 15;
-    if (campanhaAtual.agendamentos && campanhaAtual.agendamentos.length > 0) {
-      duracao = campanhaAtual.agendamentos[0].duracao_segundos;
+    // Proof of Play: Log de exibição
+    try {
+      await axios.post('http://127.0.0.1:8000/api/player/log/', { 
+        campanha_id: campanhaAtual.id 
+      });
+      console.log("Log de exibição gravado para:", campanhaAtual.nome);
+    } catch (err) {
+      console.error("Falha ao gravar log", err);
     }
 
-    const timer = setTimeout(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % playlist.length);
-    }, duracao * 1000);
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % playlist.length);
+  };
 
-    return () => clearTimeout(timer);
+  // Efeito para tratar imagens (fallback de tempo)
+  useEffect(() => {
+    if (playlist.length === 0 || loading) return;
+    
+    const currentMidia = playlist[currentIndex].midias?.[0];
+    if (currentMidia && currentMidia.tipo === 'IMAGEM') {
+      const duracao = playlist[currentIndex].duracao || 15;
+      const timer = setTimeout(handleNext, duracao * 1000);
+      return () => clearTimeout(timer);
+    }
   }, [currentIndex, playlist, loading]);
 
   if (loading) {
@@ -135,7 +145,7 @@ const PlayerView = () => {
             src={midiaCache}
             autoPlay
             muted
-            loop
+            onEnded={handleNext}
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
         ) : (

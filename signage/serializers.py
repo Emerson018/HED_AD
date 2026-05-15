@@ -7,7 +7,7 @@ Usuario = get_user_model()
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
-        fields = ['id', 'username', 'email', 'tipo_usuario', 'first_name', 'last_name']
+        fields = ['id', 'username', 'email', 'tipo_usuario', 'is_superuser', 'is_staff', 'first_name', 'last_name']
 
 class ParceiroSerializer(serializers.ModelSerializer):
     usuario = UsuarioSerializer(read_only=True)
@@ -30,7 +30,17 @@ class CampanhaSerializer(serializers.ModelSerializer):
     midias = MidiaSerializer(many=True, read_only=True)
     agendamentos = AgendamentoSerializer(many=True, read_only=True)
     parceiro = serializers.PrimaryKeyRelatedField(read_only=True)
+    parceiro_nome = serializers.CharField(source='parceiro.nome_empresa', read_only=True)
+    total_exibicoes = serializers.SerializerMethodField()
 
     class Meta:
         model = Campanha
-        fields = ['id', 'parceiro', 'nome', 'status', 'data_inicio', 'data_fim', 'midias', 'agendamentos', 'criado_em', 'atualizado_em']
+        fields = [
+            'id', 'parceiro', 'parceiro_nome', 'nome', 'status', 
+            'duracao', 'turno', 'categoria', 'total_exibicoes',
+            'data_inicio', 'data_fim', 'midias', 'agendamentos', 
+            'criado_em', 'atualizado_em'
+        ]
+
+    def get_total_exibicoes(self, obj):
+        return obj.logs.count()
