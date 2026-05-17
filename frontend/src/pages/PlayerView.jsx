@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import FavoriteIcon from '@mui/icons-material/Favorite';
+import logoHed from '../assets/logo-hed.png';
 
 const DICAS_SAUDE = [
   "Beba pelo menos 2 litros de água por dia.",
@@ -142,8 +143,8 @@ const PlayerView = () => {
   return (
     <Box sx={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', bgcolor: '#000' }}>
       
-      {/* ÁREA PRINCIPAL (80% ou 100%) */}
-      <Box sx={{ flex: isClean ? 10 : 8, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
+      {/* ÁREA PRINCIPAL (85% ou 100%) */}
+      <Box sx={{ flex: isClean ? 10 : 8.5, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
         {isVideo ? (
           <video 
             key={currentCampanha.id}
@@ -164,28 +165,26 @@ const PlayerView = () => {
         )}
       </Box>
 
-      {/* L-BAR (20%) */}
+      {/* L-BAR (15%) */}
       {!isClean && (
         <Box sx={{ 
-          flex: 2, 
+          flex: 1.5, 
           bgcolor: '#003B67', 
           color: '#d3d3d3', 
           display: 'flex', 
           flexDirection: 'column',
           borderLeft: '4px solid #068dbd',
-          p: 3
+          p: 2
         }}>
           
-          {/* Logo Placeholder */}
-          <Box sx={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', pt: 2 }}>
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="h5" sx={{ color: '#fff', fontWeight: 'bold', mb: 0.5 }}>
-                HOSPITAL
-              </Typography>
-              <Typography variant="subtitle2" sx={{ color: '#068dbd', letterSpacing: 2 }}>
-                ERNESTO DORNELLES
-              </Typography>
-            </Box>
+          {/* Logo HED */}
+          <Box sx={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', pt: 2, px: 1 }}>
+            <Box 
+              component="img"
+              src={logoHed}
+              alt="Hospital Ernesto Dornelles"
+              sx={{ width: '100%', maxWidth: '240px', height: 'auto', objectFit: 'contain' }}
+            />
           </Box>
 
           {/* Widget: Relógio */}
