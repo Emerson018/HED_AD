@@ -1,12 +1,24 @@
-import threading
+import os
 
-_thread_locals = threading.local()
-
-def set_active_db(db_name):
-    _thread_locals.active_db = db_name
+DB_CHOICE_FILE = os.path.join(os.path.dirname(__file__), 'active_db.txt')
 
 def get_active_db():
-    return getattr(_thread_locals, 'active_db', 'supabase')
+    if os.path.exists(DB_CHOICE_FILE):
+        try:
+            with open(DB_CHOICE_FILE, 'r') as f:
+                db_name = f.read().strip()
+                if db_name in ('default', 'supabase'):
+                    return db_name
+        except Exception:
+            pass
+    return 'supabase'
+
+def set_active_db(db_name):
+    try:
+        with open(DB_CHOICE_FILE, 'w') as f:
+            f.write(db_name)
+    except Exception:
+        pass
 
 class DynamicDBRouter:
     def db_for_read(self, model, **hints):
