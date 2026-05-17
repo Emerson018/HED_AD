@@ -12,6 +12,7 @@ from .serializers import (
     AgendamentoSerializer
 )
 from .permissions import IsAdminOuDonoDaCampanha
+from django.db.models import Q
 
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -82,7 +83,7 @@ class TVPlaylistView(APIView):
         campanhas_ativas = Campanha.objects.filter(
             status='APROVADA'
         ).filter(
-            models.Q(turno=turno_atual) | models.Q(turno='INTEGRAL')
+            Q(turno=turno_atual) | Q(turno='INTEGRAL')
         )
         
         serializer = CampanhaSerializer(campanhas_ativas, many=True)
