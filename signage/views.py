@@ -13,7 +13,7 @@ from .serializers import (
     AuditoriaLogSerializer
 )
 from .permissions import IsAdminOuDonoDaCampanha
-from django.db.models import Q
+from django.db.models import Q, Count
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 class MeView(APIView):
@@ -42,10 +42,14 @@ class CampanhaViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser or (hasattr(user, 'tipo_usuario') and user.tipo_usuario == 'ADMIN_HED'):
-            return Campanha.objects.all()
+            return Campanha.objects.select_related('parceiro').prefetch_related('midias', 'agendamentos').annotate(
+                num_exibicoes=Count('logs')
+            )
         # Se for Parceiro, retorna só as campanhas do perfil vinculado a ele
         if hasattr(user, 'perfil_parceiro'):
-            return Campanha.objects.filter(parceiro=user.perfil_parceiro)
+            return Campanha.objects.filter(parceiro=user.perfil_parceiro).select_related('parceiro').prefetch_related('midias', 'agendamentos').annotate(
+                num_exibicoes=Count('logs')
+            )
         return Campanha.objects.none()
 
     def perform_create(self, serializer):
@@ -55,8 +59,9 @@ class CampanhaViewSet(viewsets.ModelViewSet):
         else:
             campanha = serializer.save()
         
-        AuditoriaLog.registrar(
+        AuditoriaLog.objects.create(
             usuario=user,
+            usuario_str=user.username,
             acao='CAMPANHA_CRIACAO',
             descricao=f"Criou a campanha '{campanha.nome}' (ID: {campanha.id}) no turno {campanha.turno}."
         )
@@ -80,14 +85,16 @@ class CampanhaViewSet(viewsets.ModelViewSet):
                 acao = 'CAMPANHA_PAUSA'
                 desc = f"Alterou o status da campanha '{campanha.nome}' (ID: {campanha.id}) para {campanha.status}."
             
-            AuditoriaLog.registrar(
+            AuditoriaLog.objects.create(
                 usuario=user,
+                usuario_str=user.username,
                 acao=acao,
                 descricao=desc
             )
         else:
-            AuditoriaLog.registrar(
+            AuditoriaLog.objects.create(
                 usuario=user,
+                usuario_str=user.username,
                 acao='CAMPANHA_CRIACAO',
                 descricao=f"Atualizou os dados da campanha '{campanha.nome}' (ID: {campanha.id})."
             )
@@ -98,8 +105,9 @@ class CampanhaViewSet(viewsets.ModelViewSet):
         campanha_id = instance.id
         instance.delete()
         
-        AuditoriaLog.registrar(
+        AuditoriaLog.objects.create(
             usuario=user,
+            usuario_str=user.username,
             acao='CAMPANHA_EXCLUSAO',
             descricao=f"Excluiu a campanha '{campanha_nome}' (ID: {campanha_id})."
         )
@@ -175,8 +183,9 @@ class RegisterView(APIView):
             )
             
             # Gravar Log de Auditoria
-            AuditoriaLog.registrar(
+            AuditoriaLog.objects.create(
                 usuario=user,
+                usuario_str=user.username,
                 acao='REGISTRO_PARCEIRO',
                 descricao=f"Novo parceiro cadastrado: '{parceiro.nome_empresa}' (ID Usuário: {user.id})."
             )
@@ -192,16 +201,18 @@ class AuditedTokenObtainPairView(TokenObtainPairView):
             response = super().post(request, *args, **kwargs)
             # Se chegou aqui, login deu certo
             user = get_user_model().objects.get(username=username)
-            AuditoriaLog.registrar(
+            AuditoriaLog.objects.create(
                 usuario=user,
+                usuario_str=username,
                 acao='LOGIN_SUCESSO',
                 descricao=f"Usuário '{username}' autenticou-se com sucesso no painel."
             )
             return response
         except Exception as e:
             # Login falhou
-            AuditoriaLog.registrar(
+            AuditoriaLog.objects.create(
                 usuario=None,
+                usuario_str=username or "desconhecido",
                 acao='LOGIN_FALHA',
                 descricao=f"Tentativa de login malsucedida para o usuário '{username}'. Erro: {str(e)}"
             )
@@ -218,41 +229,3 @@ class AuditoriaLogViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_superuser or (hasattr(user, 'tipo_usuario') and user.tipo_usuario == 'ADMIN_HED'):
             return AuditoriaLog.objects.all().order_by('-criado_em')
         return AuditoriaLog.objects.none()
-
-class DatabaseSelectorView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request):
-        # Apenas admins podem ler/ver o status do banco de dados
-        user = request.user
-        if not (user.is_superuser or (hasattr(user, 'tipo_usuario') and user.tipo_usuario == 'ADMIN_HED')):
-            return Response({"error": "Acesso negado"}, status=status.HTTP_403_FORBIDDEN)
-        
-        # Lê o banco atualmente selecionado no servidor
-        from .db_router import get_active_db
-        db = get_active_db()
-        active_name = 'local' if db == 'default' else 'supabase'
-        return Response({"active_db": active_name}, status=status.HTTP_200_OK)
-
-    def post(self, request):
-        # Apenas admins podem alterar o banco de dados ativo no servidor
-        user = request.user
-        if not (user.is_superuser or (hasattr(user, 'tipo_usuario') and user.tipo_usuario == 'ADMIN_HED')):
-            return Response({"error": "Acesso negado"}, status=status.HTTP_403_FORBIDDEN)
-        
-        new_db = request.data.get('database') # 'local' ou 'supabase'
-        if new_db not in ('local', 'supabase'):
-            return Response({"error": "Banco inválido"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        from .db_router import set_active_db
-        mapped_db = 'default' if new_db == 'local' else 'supabase'
-        set_active_db(mapped_db)
-        
-        # Grava log na auditoria do banco recém-selecionado para deixar registrado!
-        AuditoriaLog.registrar(
-            usuario=user,
-            acao='LOGIN_SUCESSO',
-            descricao=f"Alterou o banco de dados ativo de todo o sistema para: '{new_db.upper()}'."
-        )
-
-        return Response({"message": f"Banco de dados alterado para {new_db} com sucesso!"}, status=status.HTTP_200_OK)

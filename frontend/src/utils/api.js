@@ -11,9 +11,6 @@ api.interceptors.request.use(
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
-    // Injeta a seleção de banco de dados ativo para o backend
-    const activeDb = localStorage.getItem('active_db') || 'supabase';
-    config.headers['X-Active-DB'] = activeDb;
     return config;
   },
   (error) => {
@@ -35,13 +32,8 @@ api.interceptors.response.use(
       if (refreshToken) {
         try {
           // Tenta pegar um novo access_token usando o refresh_token
-          const activeDb = localStorage.getItem('active_db') || 'supabase';
           const res = await axios.post('http://127.0.0.1:8000/api/token/refresh/', {
             refresh: refreshToken,
-          }, {
-            headers: {
-              'X-Active-DB': activeDb
-            }
           });
 
           // Salva o novo token
@@ -49,7 +41,6 @@ api.interceptors.response.use(
 
           // Atualiza a requisição original com o novo token e tenta de novo
           originalRequest.headers['Authorization'] = `Bearer ${res.data.access}`;
-          originalRequest.headers['X-Active-DB'] = activeDb;
           return api(originalRequest);
         } catch (refreshError) {
           // Se o refresh falhar, limpa tudo e joga pro login

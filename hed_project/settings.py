@@ -89,7 +89,7 @@ DATABASES = {
 }
 
 if os.environ.get('SUPABASE_DB_HOST'):
-    DATABASES['supabase'] = {
+    DATABASES['default'] = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('SUPABASE_DB_NAME', 'postgres'),
         'USER': os.environ.get('SUPABASE_DB_USER', 'postgres'),
@@ -99,10 +99,6 @@ if os.environ.get('SUPABASE_DB_HOST'):
         'CONN_MAX_AGE': 600,
         'CONN_HEALTH_CHECKS': True,
     }
-else:
-    DATABASES['supabase'] = DATABASES['default']
-
-DATABASE_ROUTERS = ['signage.db_router.DynamicDBRouter']
 
 AUTH_USER_MODEL = 'signage.Usuario'
 CORS_ALLOW_ALL_ORIGINS = True

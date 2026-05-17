@@ -10,8 +10,7 @@ from .views import (
     RegisterView,
     MeView,
     PlayerLogView,
-    AuditoriaLogViewSet,
-    DatabaseSelectorView
+    AuditoriaLogViewSet
 )
 
 router = DefaultRouter()
@@ -27,6 +26,5 @@ urlpatterns = [
     path('player/log/', PlayerLogView.as_view(), name='player_log'),
     path('register/', RegisterView.as_view(), name='register'),
     path('me/', MeView.as_view(), name='me'),
-    path('admin/database/', DatabaseSelectorView.as_view(), name='database_selector'),
     path('', include(router.urls)),
 ]

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   Box, 
   Drawer, 
@@ -26,8 +26,6 @@ import Brightness7Icon from '@mui/icons-material/Brightness7';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import TvIcon from '@mui/icons-material/Tv';
 import HistoryIcon from '@mui/icons-material/History';
-import StorageIcon from '@mui/icons-material/Storage';
-import api from '../utils/api';
 
 const drawerWidth = 260;
 
@@ -37,35 +35,6 @@ const Layout = ({ children, toggleTheme, mode }) => {
   const location = useLocation();
   const userRole = localStorage.getItem('user_role');
   const muiTheme = useMuiTheme();
-  const [activeDb, setActiveDb] = useState(localStorage.getItem('active_db') || 'supabase');
-
-  useEffect(() => {
-    if (userRole === 'ADMIN_HED') {
-      api.get('admin/database/')
-        .then((res) => {
-          const db = res.data.active_db;
-          setActiveDb(db);
-          localStorage.setItem('active_db', db);
-        })
-        .catch((err) => console.error('Erro ao ler banco ativo do servidor:', err));
-    }
-  }, [userRole]);
-
-  const handleDbToggle = async () => {
-    const newDb = activeDb === 'supabase' ? 'local' : 'supabase';
-    try {
-      await api.post('admin/database/', { database: newDb });
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user_role');
-      localStorage.setItem('active_db', newDb);
-      setActiveDb(newDb);
-      window.location.href = '/login';
-    } catch (err) {
-      console.error('Erro ao alterar banco de dados no servidor:', err);
-      alert('Erro ao alterar banco de dados no servidor.');
-    }
-  };
 
   const handleDrawerToggle = () => {
     setOpen(!open);
@@ -170,41 +139,6 @@ const Layout = ({ children, toggleTheme, mode }) => {
         <Box sx={{ p: 2 }}>
           <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', mb: 2 }} />
           
-          {/* Database Toggle (Apenas para Admin) */}
-          {userRole === 'ADMIN_HED' && (
-            <Tooltip title={`Banco Atual: ${activeDb === 'supabase' ? 'Supabase (Nuvem)' : 'SQLite (Local)'}`} placement="right">
-              <ListItemButton 
-                onClick={handleDbToggle}
-                sx={{ 
-                  borderRadius: 2, 
-                  mb: 1.5,
-                  justifyContent: open ? 'initial' : 'center',
-                  px: 2.5,
-                  bgcolor: activeDb === 'supabase' ? 'rgba(0, 230, 118, 0.12)' : 'rgba(255, 179, 0, 0.12)',
-                  border: '1px solid',
-                  borderColor: activeDb === 'supabase' ? 'rgba(0, 230, 118, 0.25)' : 'rgba(255, 179, 0, 0.25)',
-                  '&:hover': {
-                    bgcolor: activeDb === 'supabase' ? 'rgba(0, 230, 118, 0.22)' : 'rgba(255, 179, 0, 0.22)',
-                  }
-                }}
-              >
-                <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', color: activeDb === 'supabase' ? '#00e676' : '#ffb300' }}>
-                  <StorageIcon />
-                </ListItemIcon>
-                {open && (
-                  <ListItemText 
-                    primary={activeDb === 'supabase' ? 'BD: Supabase' : 'BD: Local (SQLite)'} 
-                    primaryTypographyProps={{ 
-                      fontWeight: 'bold', 
-                      fontSize: '0.85rem',
-                      color: activeDb === 'supabase' ? '#00e676' : '#ffb300'
-                    }} 
-                  />
-                )}
-              </ListItemButton>
-            </Tooltip>
-          )}
-
           {/* Theme Toggle */}
           <Tooltip title={mode === 'light' ? 'Modo Escuro' : 'Modo Claro'} placement="right">
             <ListItemButton 

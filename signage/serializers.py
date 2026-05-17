@@ -43,6 +43,8 @@ class CampanhaSerializer(serializers.ModelSerializer):
         ]
 
     def get_total_exibicoes(self, obj):
+        if hasattr(obj, 'num_exibicoes'):
+            return obj.num_exibicoes
         return obj.logs.count()
 
 class AuditoriaLogSerializer(serializers.ModelSerializer):
