@@ -18,7 +18,7 @@ const PlayerView = () => {
   const { token } = useParams();
   const [searchParams] = useSearchParams();
   const isClean = searchParams.get('clean') === 'true' || searchParams.get('lbar') === 'false';
-  const fitMode = searchParams.get('fit') || 'contain';
+  const fitMode = searchParams.get('fit') || 'cover';
 
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);

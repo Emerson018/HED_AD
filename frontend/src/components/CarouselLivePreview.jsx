@@ -54,11 +54,11 @@ const CarouselLivePreview = ({ campanhas, turno }) => {
               src={midia.arquivo_url} 
               autoPlay 
               muted 
-              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               onEnded={handleNext}
             />
           ) : (
-            <img src={midia?.arquivo_url} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <img src={midia?.arquivo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           )}
         </Box>
 
