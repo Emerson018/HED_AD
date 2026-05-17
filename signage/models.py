@@ -124,5 +124,32 @@ class AuditoriaLog(models.Model):
     descricao = models.TextField()
     criado_em = models.DateTimeField(auto_now_add=True)
 
+    @classmethod
+    def registrar(cls, usuario, acao, descricao):
+        db_alias = cls.objects.db
+        usuario_valido = None
+        username_str = "desconhecido"
+        
+        if usuario:
+            username_str = getattr(usuario, 'username', str(usuario))
+            # Se pertencer ao mesmo banco, associa diretamente
+            if getattr(usuario, '_state', None) and usuario._state.db == db_alias:
+                usuario_valido = usuario
+            else:
+                # Caso contrário, tenta buscar o mesmo ID no banco correto para evitar database alias mismatch
+                try:
+                    from django.contrib.auth import get_user_model
+                    UsuarioModel = get_user_model()
+                    usuario_valido = UsuarioModel.objects.using(db_alias).get(id=usuario.id)
+                except Exception:
+                    usuario_valido = None
+                    
+        return cls.objects.create(
+            usuario=usuario_valido,
+            usuario_str=username_str,
+            acao=acao,
+            descricao=descricao
+        )
+
     def __str__(self):
         return f"{self.criado_em} - {self.usuario_str} - {self.acao}"

@@ -55,9 +55,8 @@ class CampanhaViewSet(viewsets.ModelViewSet):
         else:
             campanha = serializer.save()
         
-        AuditoriaLog.objects.create(
+        AuditoriaLog.registrar(
             usuario=user,
-            usuario_str=user.username,
             acao='CAMPANHA_CRIACAO',
             descricao=f"Criou a campanha '{campanha.nome}' (ID: {campanha.id}) no turno {campanha.turno}."
         )
@@ -81,16 +80,14 @@ class CampanhaViewSet(viewsets.ModelViewSet):
                 acao = 'CAMPANHA_PAUSA'
                 desc = f"Alterou o status da campanha '{campanha.nome}' (ID: {campanha.id}) para {campanha.status}."
             
-            AuditoriaLog.objects.create(
+            AuditoriaLog.registrar(
                 usuario=user,
-                usuario_str=user.username,
                 acao=acao,
                 descricao=desc
             )
         else:
-            AuditoriaLog.objects.create(
+            AuditoriaLog.registrar(
                 usuario=user,
-                usuario_str=user.username,
                 acao='CAMPANHA_CRIACAO',
                 descricao=f"Atualizou os dados da campanha '{campanha.nome}' (ID: {campanha.id})."
             )
@@ -101,9 +98,8 @@ class CampanhaViewSet(viewsets.ModelViewSet):
         campanha_id = instance.id
         instance.delete()
         
-        AuditoriaLog.objects.create(
+        AuditoriaLog.registrar(
             usuario=user,
-            usuario_str=user.username,
             acao='CAMPANHA_EXCLUSAO',
             descricao=f"Excluiu a campanha '{campanha_nome}' (ID: {campanha_id})."
         )
@@ -179,9 +175,8 @@ class RegisterView(APIView):
             )
             
             # Gravar Log de Auditoria
-            AuditoriaLog.objects.create(
+            AuditoriaLog.registrar(
                 usuario=user,
-                usuario_str=user.username,
                 acao='REGISTRO_PARCEIRO',
                 descricao=f"Novo parceiro cadastrado: '{parceiro.nome_empresa}' (ID Usuário: {user.id})."
             )
@@ -197,18 +192,16 @@ class AuditedTokenObtainPairView(TokenObtainPairView):
             response = super().post(request, *args, **kwargs)
             # Se chegou aqui, login deu certo
             user = get_user_model().objects.get(username=username)
-            AuditoriaLog.objects.create(
+            AuditoriaLog.registrar(
                 usuario=user,
-                usuario_str=username,
                 acao='LOGIN_SUCESSO',
                 descricao=f"Usuário '{username}' autenticou-se com sucesso no painel."
             )
             return response
         except Exception as e:
             # Login falhou
-            AuditoriaLog.objects.create(
+            AuditoriaLog.registrar(
                 usuario=None,
-                usuario_str=username or "desconhecido",
                 acao='LOGIN_FALHA',
                 descricao=f"Tentativa de login malsucedida para o usuário '{username}'. Erro: {str(e)}"
             )
@@ -256,10 +249,8 @@ class DatabaseSelectorView(APIView):
         set_active_db(mapped_db)
         
         # Grava log na auditoria do banco recém-selecionado para deixar registrado!
-        # Passamos usuario=None para evitar erros de Foreign Key / Database Alias mismatch entre bancos.
-        AuditoriaLog.objects.create(
-            usuario=None,
-            usuario_str=user.username,
+        AuditoriaLog.registrar(
+            usuario=user,
             acao='LOGIN_SUCESSO',
             descricao=f"Alterou o banco de dados ativo de todo o sistema para: '{new_db.upper()}'."
         )

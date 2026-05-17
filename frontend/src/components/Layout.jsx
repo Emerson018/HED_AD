@@ -55,9 +55,12 @@ const Layout = ({ children, toggleTheme, mode }) => {
     const newDb = activeDb === 'supabase' ? 'local' : 'supabase';
     try {
       await api.post('admin/database/', { database: newDb });
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_role');
       localStorage.setItem('active_db', newDb);
       setActiveDb(newDb);
-      window.location.reload();
+      window.location.href = '/login';
     } catch (err) {
       console.error('Erro ao alterar banco de dados no servidor:', err);
       alert('Erro ao alterar banco de dados no servidor.');
