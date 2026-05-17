@@ -256,8 +256,9 @@ class DatabaseSelectorView(APIView):
         set_active_db(mapped_db)
         
         # Grava log na auditoria do banco recém-selecionado para deixar registrado!
+        # Passamos usuario=None para evitar erros de Foreign Key / Database Alias mismatch entre bancos.
         AuditoriaLog.objects.create(
-            usuario=user,
+            usuario=None,
             usuario_str=user.username,
             acao='LOGIN_SUCESSO',
             descricao=f"Alterou o banco de dados ativo de todo o sistema para: '{new_db.upper()}'."
