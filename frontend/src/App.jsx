@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminPreview from './pages/AdminPreview';
 import ParceiroDashboard from './pages/ParceiroDashboard';
 import ParceiroHome from './pages/ParceiroHome';
 import PlayerView from './pages/PlayerView';
@@ -33,10 +34,18 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/tv/player/:token" element={<PlayerView />} />
           <Route 
-            path="/admin/*" 
+            path="/admin" 
             element={
               <ProtectedRoute allowedRoles={['ADMIN_HED']}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/preview" 
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN_HED']}>
+                <AdminPreview />
               </ProtectedRoute>
             } 
           />

@@ -24,7 +24,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-// Logo removido temporariamente para evitar erro de arquivo corrompido
+import TvIcon from '@mui/icons-material/Tv';
 
 const drawerWidth = 260;
 
@@ -47,6 +47,7 @@ const Layout = ({ children, toggleTheme, mode }) => {
   const menuItems = userRole === 'ADMIN_HED' 
     ? [
         { text: 'Dashboard Admin', icon: <AdminPanelSettingsIcon />, path: '/admin' },
+        { text: 'Simulador de TV', icon: <TvIcon />, path: '/admin/preview' },
       ]
     : [
         { text: 'Início', icon: <DashboardIcon />, path: '/parceiro' },

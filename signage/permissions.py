@@ -8,20 +8,20 @@ class IsAdminOuDonoDaCampanha(permissions.BasePermission):
     
     def has_permission(self, request, view):
         # Todos precisam estar autenticados
-        return request.user and request.user.is_authenticated
+        return bool(request.user and request.user.is_authenticated)
 
     def has_object_permission(self, request, view, obj):
-        # Admin tem acesso total
-        if hasattr(request.user, 'tipo_usuario') and request.user.tipo_usuario == 'ADMIN_HED':
+        # Admin ou Superuser tem acesso total
+        user = request.user
+        if user.is_superuser or (hasattr(user, 'tipo_usuario') and user.tipo_usuario == 'ADMIN_HED'):
             return True
             
         # Verifica se o usuário é o dono (Parceiro associado)
-        # O objeto obj pode ser uma Campanha
         if hasattr(obj, 'parceiro'):
-            return obj.parceiro.usuario == request.user
+            return obj.parceiro.usuario == user
             
         # O objeto obj pode ser um Parceiro
         if hasattr(obj, 'usuario'):
-            return obj.usuario == request.user
+            return obj.usuario == user
             
         return False

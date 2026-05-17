@@ -65,13 +65,17 @@ const ParceiroDashboard = () => {
         const seconds = Math.round(video.duration);
         
         // Regra de negócio: 15, 30 ou 60
-        if (seconds <= 20) setDuracao(15);
-        else if (seconds <= 40) setDuracao(30);
-        else setDuracao(60);
+        let autoDur = 15;
+        if (seconds > 20 && seconds <= 40) autoDur = 30;
+        else if (seconds > 40) autoDur = 60;
         
-        showMessage(`Duração detectada: ${seconds} segundos. Ajustado para ${seconds <= 20 ? 15 : seconds <= 40 ? 30 : 60}s.`, "info");
+        setDuracao(autoDur);
+        showMessage(`Duração detectada: ${seconds}s. O sistema definiu ${autoDur}s para o carrossel.`, "info");
       };
       video.src = URL.createObjectURL(selectedFile);
+    } else {
+      // Imagem - padrão 15s
+      setDuracao(15);
     }
   };
 
@@ -160,26 +164,12 @@ const ParceiroDashboard = () => {
             <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <TextField
                 select
-                label="Duração"
-                fullWidth
-                sx={{ flex: 1, minWidth: '120px' }}
-                value={duracao}
-                onChange={(e) => setDuracao(e.target.value)}
-                helperText="Tempo de exibição (seg)"
-              >
-                <MenuItem value={15}>15 segundos</MenuItem>
-                <MenuItem value={30}>30 segundos</MenuItem>
-                <MenuItem value={60}>60 segundos</MenuItem>
-              </TextField>
-
-              <TextField
-                select
                 label="Turno de Exibição"
                 fullWidth
                 sx={{ flex: 1, minWidth: '200px' }}
                 value={turno}
                 onChange={(e) => setTurno(e.target.value)}
-                helperText="Horário preferencial"
+                helperText="Escolha o horário preferencial de exibição"
               >
                 <MenuItem value="INTEGRAL">Integral (Todos os horários)</MenuItem>
                 <MenuItem value="MANHA">Manhã (07:00 - 11:59)</MenuItem>

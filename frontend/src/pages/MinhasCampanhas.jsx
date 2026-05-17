@@ -12,7 +12,9 @@ import {
   Chip,
   Button,
   Box,
-  IconButton
+  IconButton,
+  CircularProgress,
+  Skeleton
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CampaignIcon from '@mui/icons-material/Campaign';
@@ -20,6 +22,7 @@ import AddCircleIcon from '@mui/icons-material/AddCircle';
 
 const MinhasCampanhas = () => {
   const [campanhas, setCampanhas] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,11 +30,14 @@ const MinhasCampanhas = () => {
   }, []);
 
   const fetchCampanhas = async () => {
+    setLoading(true);
     try {
       const response = await api.get('campanhas/');
       setCampanhas(response.data);
     } catch (error) {
       console.error("Erro ao buscar campanhas", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -67,28 +73,44 @@ const MinhasCampanhas = () => {
 
       <Card sx={{ borderRadius: 3 }}>
         <List>
-          {campanhas.map((c, index) => (
-            <React.Fragment key={c.id}>
-              <ListItem sx={{ py: 2 }}>
-                <ListItemText 
-                  primary={
-                    <Typography variant="h6" fontWeight="medium">
-                      {c.nome}
-                    </Typography>
-                  } 
-                  secondary={`Início: ${new Date(c.data_inicio).toLocaleDateString()} - Fim: ${new Date(c.data_fim).toLocaleDateString()}`} 
-                />
-                <Chip 
-                  label={c.status.replace('_', ' ')} 
-                  color={getStatusColor(c.status)} 
-                  variant="filled"
-                  sx={{ fontWeight: 'bold' }}
-                />
-              </ListItem>
-              {index < campanhas.length - 1 && <Divider />}
-            </React.Fragment>
-          ))}
-          {campanhas.length === 0 && (
+          {loading ? (
+            // Exibe 3 itens de skeleton enquanto carrega
+            [1, 2, 3].map((item, idx) => (
+              <React.Fragment key={idx}>
+                <ListItem sx={{ py: 2 }}>
+                  <ListItemText 
+                    primary={<Skeleton variant="text" width="60%" height={32} />} 
+                    secondary={<Skeleton variant="text" width="40%" height={20} />} 
+                  />
+                  <Skeleton variant="rectangular" width={100} height={32} sx={{ borderRadius: 2 }} />
+                </ListItem>
+                {idx < 2 && <Divider />}
+              </React.Fragment>
+            ))
+          ) : (
+            campanhas.map((c, index) => (
+              <React.Fragment key={c.id}>
+                <ListItem sx={{ py: 2 }}>
+                  <ListItemText 
+                    primary={
+                      <Typography variant="h6" fontWeight="medium">
+                        {c.nome}
+                      </Typography>
+                    } 
+                    secondary={`Início: ${new Date(c.data_inicio).toLocaleDateString()} - Fim: ${new Date(c.data_fim).toLocaleDateString()}`} 
+                  />
+                  <Chip 
+                    label={c.status.replace('_', ' ')} 
+                    color={getStatusColor(c.status)} 
+                    variant="filled"
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                </ListItem>
+                {index < campanhas.length - 1 && <Divider />}
+              </React.Fragment>
+            ))
+          )}
+          {!loading && campanhas.length === 0 && (
             <Box sx={{ p: 6, textAlign: 'center' }}>
               <Typography variant="h6" color="text.secondary" gutterBottom>
                 Nenhuma campanha encontrada.
