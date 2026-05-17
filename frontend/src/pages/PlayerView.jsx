@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../utils/api';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -47,36 +47,37 @@ const PlayerView = () => {
   useEffect(() => {
     const initPlayer = async () => {
       try {
-        // GET na API (Para MVP não estamos forçando token Auth na Header, pois a TV não faz login normal)
-        // O Endpoint TVPlaylistView aceita AllowAny.
-        const res = await axios.get('http://127.0.0.1:8000/api/tv/playlist/');
+        const res = await api.get('tv/playlist/');
         const campanhas = res.data;
         
         if (campanhas.length === 0) {
+          setPlaylist([]);
           setLoading(false);
-          return; // Fica na tela preta / aguardando
+          return;
         }
 
         setPlaylist(campanhas);
+        setLoading(false); // Liberar exibição da TV imediatamente!
 
-        // Preload das mídias em Background
-        const cache = {};
-        for (const c of campanhas) {
+        // Preload das mídias em Background (Paralelo e Não Bloqueante)
+        campanhas.forEach(async (c) => {
           if (c.midias && c.midias.length > 0) {
             const url = c.midias[0].arquivo_url;
             try {
               const fileRes = await fetch(url);
               const blob = await fileRes.blob();
-              cache[url] = URL.createObjectURL(blob);
-              console.log("Cached:", url);
+              const blobUrl = URL.createObjectURL(blob);
+              setCachedUrls((prev) => ({
+                ...prev,
+                [url]: blobUrl
+              }));
+              console.log("Cached successfully in background:", url);
             } catch (err) {
-              console.error("Falha ao cachear", url, err);
-              cache[url] = url; // Fallback
+              console.warn("Falha de CORS/Rede ao pré-carregar mídia. Usando URL direta:", url, err);
+              // Fallback automático é a URL direta (supabse) no render
             }
           }
-        }
-        setCachedUrls(cache);
-        setLoading(false);
+        });
 
       } catch (error) {
         console.error("Erro ao buscar playlist", error);
@@ -94,7 +95,7 @@ const PlayerView = () => {
     
     // Proof of Play: Log de exibição
     try {
-      await axios.post('http://127.0.0.1:8000/api/player/log/', { 
+      await api.post('player/log/', { 
         campanha_id: campanhaAtual.id 
       });
       console.log("Log de exibição gravado para:", campanhaAtual.nome);
@@ -145,10 +146,12 @@ const PlayerView = () => {
       <Box sx={{ flex: isClean ? 10 : 8, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
         {isVideo ? (
           <video 
+            key={currentCampanha.id}
             ref={videoRef}
             src={midiaCache}
             autoPlay
             muted
+            playsInline
             onEnded={handleNext}
             style={{ width: '100%', height: '100%', objectFit: fitMode }}
           />
