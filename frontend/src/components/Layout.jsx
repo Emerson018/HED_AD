@@ -55,9 +55,14 @@ const Layout = ({ children, toggleTheme, mode }) => {
         { text: 'Nova Campanha', icon: <AddCircleIcon />, path: '/parceiro/upload' },
       ];
 
-  // Não mostrar sidebar na tela de login ou registro
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/' || location.pathname === '/register';
-  if (isAuthPage) return <>{children}</>;
+  // Não mostrar sidebar na tela de login, registro ou player de TV
+  const isBypassLayout = 
+    location.pathname === '/login' || 
+    location.pathname === '/' || 
+    location.pathname === '/register' || 
+    location.pathname.startsWith('/tv/player');
+
+  if (isBypassLayout) return <>{children}</>;
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { Box, Typography, CircularProgress } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -15,6 +15,10 @@ const DICAS_SAUDE = [
 
 const PlayerView = () => {
   const { token } = useParams();
+  const [searchParams] = useSearchParams();
+  const isClean = searchParams.get('clean') === 'true' || searchParams.get('lbar') === 'false';
+  const fitMode = searchParams.get('fit') || 'contain';
+
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cachedUrls, setCachedUrls] = useState({});
@@ -137,8 +141,8 @@ const PlayerView = () => {
   return (
     <Box sx={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', bgcolor: '#000' }}>
       
-      {/* ÁREA PRINCIPAL (80%) */}
-      <Box sx={{ flex: 8, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
+      {/* ÁREA PRINCIPAL (80% ou 100%) */}
+      <Box sx={{ flex: isClean ? 10 : 8, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
         {isVideo ? (
           <video 
             ref={videoRef}
@@ -146,60 +150,62 @@ const PlayerView = () => {
             autoPlay
             muted
             onEnded={handleNext}
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            style={{ width: '100%', height: '100%', objectFit: fitMode }}
           />
         ) : (
           <img 
             src={midiaCache} 
             alt={currentCampanha.nome}
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+            style={{ width: '100%', height: '100%', objectFit: fitMode }} 
           />
         )}
       </Box>
 
       {/* L-BAR (20%) */}
-      <Box sx={{ 
-        flex: 2, 
-        bgcolor: '#003B67', 
-        color: '#d3d3d3', 
-        display: 'flex', 
-        flexDirection: 'column',
-        borderLeft: '4px solid #068dbd',
-        p: 3
-      }}>
-        
-        {/* Logo Placeholder */}
-        <Box sx={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', pt: 2 }}>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="h5" sx={{ color: '#fff', fontWeight: 'bold', mb: 0.5 }}>
-              HOSPITAL
+      {!isClean && (
+        <Box sx={{ 
+          flex: 2, 
+          bgcolor: '#003B67', 
+          color: '#d3d3d3', 
+          display: 'flex', 
+          flexDirection: 'column',
+          borderLeft: '4px solid #068dbd',
+          p: 3
+        }}>
+          
+          {/* Logo Placeholder */}
+          <Box sx={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', pt: 2 }}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h5" sx={{ color: '#fff', fontWeight: 'bold', mb: 0.5 }}>
+                HOSPITAL
+              </Typography>
+              <Typography variant="subtitle2" sx={{ color: '#068dbd', letterSpacing: 2 }}>
+                ERNESTO DORNELLES
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Widget: Relógio */}
+          <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <AccessTimeIcon sx={{ fontSize: 40, color: '#068dbd', mb: 1 }} />
+            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 'bold' }}>
+              {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Typography>
-            <Typography variant="subtitle2" sx={{ color: '#068dbd', letterSpacing: 2 }}>
-              ERNESTO DORNELLES
+            <Typography variant="subtitle1" sx={{ color: '#d3d3d3' }}>
+              {time.toLocaleDateString()}
             </Typography>
           </Box>
-        </Box>
 
-        {/* Widget: Relógio */}
-        <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <AccessTimeIcon sx={{ fontSize: 40, color: '#068dbd', mb: 1 }} />
-          <Typography variant="h3" sx={{ color: '#fff', fontWeight: 'bold' }}>
-            {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Typography>
-          <Typography variant="subtitle1" sx={{ color: '#d3d3d3' }}>
-            {time.toLocaleDateString()}
-          </Typography>
-        </Box>
+          {/* Widget: Dicas de Saúde */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', pb: 2, textAlign: 'center' }}>
+            <FavoriteIcon sx={{ color: '#068dbd', mb: 1, fontSize: 32 }} />
+            <Typography variant="body1" sx={{ fontWeight: 500, lineHeight: 1.4 }}>
+              {DICAS_SAUDE[dicaIndex]}
+            </Typography>
+          </Box>
 
-        {/* Widget: Dicas de Saúde */}
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', pb: 2, textAlign: 'center' }}>
-          <FavoriteIcon sx={{ color: '#068dbd', mb: 1, fontSize: 32 }} />
-          <Typography variant="body1" sx={{ fontWeight: 500, lineHeight: 1.4 }}>
-            {DICAS_SAUDE[dicaIndex]}
-          </Typography>
         </Box>
-
-      </Box>
+      )}
     </Box>
   );
 };

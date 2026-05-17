@@ -11,11 +11,15 @@ import {
   Breadcrumbs,
   Link,
   Skeleton,
-  CircularProgress
+  CircularProgress,
+  Button,
+  Grid
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import HomeIcon from '@mui/icons-material/Home';
 import TvIcon from '@mui/icons-material/Tv';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import LaunchIcon from '@mui/icons-material/Launch';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import CarouselLivePreview from '../components/CarouselLivePreview';
@@ -24,7 +28,15 @@ const AdminPreview = () => {
   const [campanhas, setCampanhas] = useState([]);
   const [turno, setTurno] = useState('MANHA');
   const [loading, setLoading] = useState(true);
+  const [tokenInput, setTokenInput] = useState('tv_sala_espera');
   const navigate = useNavigate();
+
+  const getPlayerUrl = (clean = false) => {
+    const base = `${window.location.protocol}//${window.location.host}`;
+    return clean 
+      ? `${base}/tv/player/${tokenInput}?clean=true` 
+      : `${base}/tv/player/${tokenInput}`;
+  };
 
   useEffect(() => {
     const fetchCampanhas = async () => {
@@ -107,6 +119,117 @@ const AdminPreview = () => {
           <CarouselLivePreview campanhas={campanhas} turno={turno} />
         )}
       </Box>
+
+      {/* Gerenciador de Links de Transmissão */}
+      <Paper sx={{ mt: 4, p: 3, borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+        <Typography variant="h6" fontWeight="bold" gutterBottom color="primary">
+          📺 URLs de Transmissão para as TVs do Hospital
+        </Typography>
+        <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+          Configure o identificador (Token) da TV abaixo para gerar os links de reprodução corretos para os aparelhos físicos do hospital.
+        </Typography>
+
+        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2, maxWidth: '400px' }}>
+          <TextField
+            label="Identificador da TV (Token)"
+            size="small"
+            value={tokenInput}
+            onChange={(e) => setTokenInput(e.target.value.replace(/\s+/g, '_').toLowerCase())}
+            helperText="Ex: tv_recepcao, tv_sala_espera"
+            fullWidth
+          />
+        </Box>
+
+        <Grid container spacing={3}>
+          {/* Card 1: L-Bar */}
+          <Grid item xs={12} md={6}>
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover' }}>
+              <Typography variant="subtitle1" fontWeight="bold" color="text.primary" gutterBottom>
+                1. Player Institucional (Com L-Bar)
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Layout padrão contendo a identidade do hospital, relógio em tempo real, dicas de saúde e o vídeo da campanha à esquerda (80% / 20%).
+              </Typography>
+              
+              <TextField
+                fullWidth
+                size="small"
+                value={getPlayerUrl(false)}
+                InputProps={{ readOnly: true }}
+                sx={{ mb: 2, bgcolor: 'background.paper' }}
+              />
+
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <Button 
+                  variant="contained" 
+                  size="small"
+                  onClick={() => window.open(getPlayerUrl(false), '_blank')}
+                  startIcon={<LaunchIcon />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Abrir Player
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="small"
+                  onClick={() => {
+                    navigator.clipboard.writeText(getPlayerUrl(false));
+                    alert('Link copiado para a área de transferência!');
+                  }}
+                  startIcon={<ContentCopyIcon />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Copiar Link
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Card 2: Vídeo Puro */}
+          <Grid item xs={12} md={6}>
+            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover' }}>
+              <Typography variant="subtitle1" fontWeight="bold" color="text.primary" gutterBottom>
+                2. Player de Vídeo Puro (Tela Cheia)
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Layout limpo sem máscara institucional. Ideal para TVs que devem passar apenas os vídeos das campanhas em tela cheia (100%).
+              </Typography>
+
+              <TextField
+                fullWidth
+                size="small"
+                value={getPlayerUrl(true)}
+                InputProps={{ readOnly: true }}
+                sx={{ mb: 2, bgcolor: 'background.paper' }}
+              />
+
+              <Box sx={{ display: 'flex', gap: 1.5 }}>
+                <Button 
+                  variant="contained" 
+                  size="small"
+                  onClick={() => window.open(getPlayerUrl(true), '_blank')}
+                  startIcon={<LaunchIcon />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Abrir Player
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="small"
+                  onClick={() => {
+                    navigator.clipboard.writeText(getPlayerUrl(true));
+                    alert('Link copiado para a área de transferência!');
+                  }}
+                  startIcon={<ContentCopyIcon />}
+                  sx={{ textTransform: 'none' }}
+                >
+                  Copiar Link
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Info Adicional */}
       <Box sx={{ mt: 6, textAlign: 'center', opacity: 0.6 }}>
