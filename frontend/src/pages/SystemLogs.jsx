@@ -1,0 +1,330 @@
+import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
+import { 
+  Box, 
+  Container, 
+  Typography, 
+  Paper, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableContainer, 
+  TableHead, 
+  TableRow, 
+  TablePagination,
+  TextField,
+  MenuItem,
+  Chip,
+  Grid,
+  Card,
+  CardContent,
+  Stack,
+  CircularProgress,
+  InputAdornment
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import HistoryIcon from '@mui/icons-material/History';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import CampaignIcon from '@mui/icons-material/Campaign';
+
+const SystemLogs = () => {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Filtros
+  const [search, setSearch] = useState('');
+  const [actionFilter, setActionFilter] = useState('ALL');
+
+  // Paginação
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const fetchLogs = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('logs/');
+      setLogs(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Erro ao buscar logs de auditoria:', err);
+      setError('Não foi possível carregar os logs do sistema. Certifique-se de estar autenticado como Administrador.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getActionStyles = (action) => {
+    switch (action) {
+      case 'LOGIN_SUCESSO':
+        return { label: 'Login Sucesso', color: 'success', variant: 'filled' };
+      case 'LOGIN_FALHA':
+        return { label: 'Falha de Login', color: 'error', variant: 'filled' };
+      case 'CAMPANHA_CRIACAO':
+        return { label: 'Criação', color: 'primary', variant: 'outlined' };
+      case 'CAMPANHA_APROVACAO':
+        return { label: 'Aprovação', color: 'success', variant: 'outlined' };
+      case 'CAMPANHA_EXCLUSAO':
+        return { label: 'Exclusão', color: 'error', variant: 'outlined' };
+      case 'CAMPANHA_PAUSA':
+        return { label: 'Pausa', color: 'warning', variant: 'outlined' };
+      case 'UPLOAD_VIDEO':
+        return { label: 'Upload Mídia', color: 'secondary', variant: 'outlined' };
+      case 'REGISTRO_PARCEIRO':
+        return { label: 'Cadastro', color: 'info', variant: 'filled' };
+      default:
+        return { label: action, color: 'default', variant: 'outlined' };
+    }
+  };
+
+  // Filtragem dos logs em memória para melhor velocidade
+  const filteredLogs = logs.filter(log => {
+    const matchesSearch = 
+      log.usuario_str?.toLowerCase().includes(search.toLowerCase()) ||
+      log.descricao?.toLowerCase().includes(search.toLowerCase());
+    
+    const matchesAction = 
+      actionFilter === 'ALL' || 
+      log.acao === actionFilter;
+
+    return matchesSearch && matchesAction;
+  });
+
+  // Estatísticas rápidas baseadas nos dados carregados
+  const stats = {
+    total: logs.length,
+    successLogins: logs.filter(l => l.acao === 'LOGIN_SUCESSO').length,
+    failedLogins: logs.filter(l => l.acao === 'LOGIN_FALHA').length,
+    campaignCreations: logs.filter(l => l.acao === 'CAMPANHA_CRIACAO').length,
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 2 }}>
+        <CircularProgress size={50} thickness={4} />
+        <Typography variant="body1" color="textSecondary">
+          Carregando registros de auditoria...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container sx={{ mt: 4 }}>
+        <Paper sx={{ p: 4, bgcolor: '#fff5f5', border: '1px solid #ffcdd2', borderRadius: 4 }}>
+          <Typography variant="h6" color="error" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ErrorIcon /> Erro de Acesso
+          </Typography>
+          <Typography variant="body1" color="textSecondary">
+            {error}
+          </Typography>
+        </Paper>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="xl" sx={{ mt: 4, pb: 4 }}>
+      {/* Header */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" fontWeight="bold" sx={{ color: 'primary.main', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <HistoryIcon fontSize="large" /> Logs do Sistema
+        </Typography>
+        <Typography variant="subtitle1" color="textSecondary">
+          Auditoria completa das atividades, operações de campanhas e tentativas de autenticação do painel de Digital Signage.
+        </Typography>
+      </Box>
+
+      {/* Grid de Estatísticas */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid #003B67' }}>
+            <CardContent>
+              <Typography variant="body2" color="textSecondary" fontWeight="bold">Total de Atividades</Typography>
+              <Typography variant="h4" fontWeight="bold" color="primary" sx={{ mt: 1 }}>
+                {stats.total}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid #2e7d32' }}>
+            <CardContent>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="textSecondary" fontWeight="bold">Logins Bem Sucedidos</Typography>
+                <CheckCircleIcon sx={{ color: 'success.main' }} />
+              </Stack>
+              <Typography variant="h4" fontWeight="bold" color="success.main" sx={{ mt: 1 }}>
+                {stats.successLogins}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid #d32f2f' }}>
+            <CardContent>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="textSecondary" fontWeight="bold">Falhas de Login</Typography>
+                <ErrorIcon sx={{ color: 'error.main' }} />
+              </Stack>
+              <Typography variant="h4" fontWeight="bold" color="error.main" sx={{ mt: 1 }}>
+                {stats.failedLogins}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid #0288d1' }}>
+            <CardContent>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="textSecondary" fontWeight="bold">Novas Campanhas</Typography>
+                <CampaignIcon sx={{ color: 'info.main' }} />
+              </Stack>
+              <Typography variant="h4" fontWeight="bold" color="info.main" sx={{ mt: 1 }}>
+                {stats.campaignCreations}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Painel de Filtros e Tabela */}
+      <Paper elevation={3} sx={{ borderRadius: 4, overflow: 'hidden', p: 3 }}>
+        
+        {/* Barra de Filtros */}
+        <Grid container spacing={2} sx={{ mb: 3 }} alignItems="center">
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              size="small"
+              placeholder="Buscar por usuário, descrição..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <TextField
+              select
+              fullWidth
+              variant="outlined"
+              size="small"
+              label="Tipo de Ação"
+              value={actionFilter}
+              onChange={(e) => { setActionFilter(e.target.value); setPage(0); }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <FilterListIcon color="action" />
+                  </InputAdornment>
+                ),
+              }}
+            >
+              <MenuItem value="ALL">Todas as Ações</MenuItem>
+              <MenuItem value="LOGIN_SUCESSO">Login (Sucesso)</MenuItem>
+              <MenuItem value="LOGIN_FALHA">Tentativa (Falha)</MenuItem>
+              <MenuItem value="CAMPANHA_CRIACAO">Criação de Campanha</MenuItem>
+              <MenuItem value="CAMPANHA_APROVACAO">Aprovação de Campanha</MenuItem>
+              <MenuItem value="CAMPANHA_EXCLUSAO">Exclusão de Campanha</MenuItem>
+              <MenuItem value="CAMPANHA_PAUSA">Pausa de Campanha</MenuItem>
+              <MenuItem value="UPLOAD_VIDEO">Upload Mídia</MenuItem>
+              <MenuItem value="REGISTRO_PARCEIRO">Novos Cadastros</MenuItem>
+            </TextField>
+          </Grid>
+        </Grid>
+
+        {/* Tabela de Logs */}
+        <TableContainer>
+          <Table sx={{ minWidth: 650 }}>
+            <TableHead sx={{ bgcolor: 'action.hover' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>Data/Hora</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Usuário</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Ação</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Descrição da Atividade</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredLogs.length > 0 ? (
+                filteredLogs
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((log) => {
+                    const chipStyle = getActionStyles(log.acao);
+                    return (
+                      <TableRow key={log.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                          {new Date(log.criado_em).toLocaleString('pt-BR')}
+                        </TableCell>
+                        <TableCell sx={{ fontWeight: 'medium' }}>
+                          {log.usuario_str}
+                        </TableCell>
+                        <TableCell>
+                          <Chip 
+                            label={chipStyle.label} 
+                            color={chipStyle.color} 
+                            variant={chipStyle.variant} 
+                            size="small"
+                            sx={{ fontWeight: 'bold' }}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ color: 'text.secondary' }}>
+                          {log.descricao}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
+                    <HistoryIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+                    <Typography color="textSecondary" variant="subtitle1">
+                      Nenhum registro de auditoria encontrado para os filtros selecionados.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Paginação */}
+        <TablePagination
+          rowsPerPageOptions={[10, 25, 50]}
+          component="div"
+          count={filteredLogs.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          labelRowsPerPage="Linhas por página:"
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`}
+        />
+      </Paper>
+    </Container>
+  );
+};
+
+export default SystemLogs;

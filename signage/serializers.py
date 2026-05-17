@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Parceiro, Campanha, Midia, Agendamento
+from .models import Parceiro, Campanha, Midia, Agendamento, AuditoriaLog
 
 Usuario = get_user_model()
 
@@ -44,3 +44,9 @@ class CampanhaSerializer(serializers.ModelSerializer):
 
     def get_total_exibicoes(self, obj):
         return obj.logs.count()
+
+class AuditoriaLogSerializer(serializers.ModelSerializer):
+    acao_display = serializers.CharField(source='get_acao_display', read_only=True)
+    class Meta:
+        model = AuditoriaLog
+        fields = ['id', 'usuario', 'usuario_str', 'acao', 'acao_display', 'descricao', 'criado_em']

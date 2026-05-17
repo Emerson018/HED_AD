@@ -25,6 +25,7 @@ import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import TvIcon from '@mui/icons-material/Tv';
+import HistoryIcon from '@mui/icons-material/History';
 
 const drawerWidth = 260;
 
@@ -48,6 +49,7 @@ const Layout = ({ children, toggleTheme, mode }) => {
     ? [
         { text: 'Dashboard Admin', icon: <AdminPanelSettingsIcon />, path: '/admin' },
         { text: 'Simulador de TV', icon: <TvIcon />, path: '/admin/preview' },
+        { text: 'Logs do Sistema', icon: <HistoryIcon />, path: '/admin/logs' },
       ]
     : [
         { text: 'Início', icon: <DashboardIcon />, path: '/parceiro' },

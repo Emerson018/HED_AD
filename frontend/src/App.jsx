@@ -12,6 +12,7 @@ import ParceiroHome from './pages/ParceiroHome';
 import PlayerView from './pages/PlayerView';
 import Register from './pages/Register';
 import MinhasCampanhas from './pages/MinhasCampanhas';
+import SystemLogs from './pages/SystemLogs';
 
 const NotFound = () => <div style={{ padding: '2rem' }}><h2>Página não encontrada</h2></div>;
 
@@ -46,6 +47,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN_HED']}>
                 <AdminPreview />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/logs" 
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN_HED']}>
+                <SystemLogs />
               </ProtectedRoute>
             } 
           />

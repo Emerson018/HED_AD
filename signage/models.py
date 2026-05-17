@@ -106,3 +106,23 @@ class Agendamento(models.Model):
     
     def __str__(self):
         return f"Agendamento de {self.campanha.nome} ({self.horario_inicio} - {self.horario_fim})"
+
+class AuditoriaLog(models.Model):
+    ACAO_CHOICES = (
+        ('LOGIN_SUCESSO', 'Tentativa de Login (Sucesso)'),
+        ('LOGIN_FALHA', 'Tentativa de Login (Falha)'),
+        ('CAMPANHA_CRIACAO', 'Criação de Campanha'),
+        ('CAMPANHA_APROVACAO', 'Aprovação de Campanha'),
+        ('CAMPANHA_EXCLUSAO', 'Exclusão de Campanha'),
+        ('CAMPANHA_PAUSA', 'Pausa de Campanha'),
+        ('UPLOAD_VIDEO', 'Upload de Vídeo/Imagem'),
+        ('REGISTRO_PARCEIRO', 'Cadastro de Parceiro'),
+    )
+    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs_auditoria')
+    usuario_str = models.CharField(max_length=150, help_text="Nome de usuário para auditoria")
+    acao = models.CharField(max_length=50, choices=ACAO_CHOICES)
+    descricao = models.TextField()
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.criado_em} - {self.usuario_str} - {self.acao}"

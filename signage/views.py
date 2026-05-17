@@ -2,17 +2,19 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from .models import Parceiro, Campanha, Midia, Agendamento, CampanhaLog
+from .models import Parceiro, Campanha, Midia, Agendamento, CampanhaLog, AuditoriaLog
 import datetime
 from .serializers import (
     UsuarioSerializer, 
     ParceiroSerializer, 
     CampanhaSerializer, 
     MidiaSerializer, 
-    AgendamentoSerializer
+    AgendamentoSerializer,
+    AuditoriaLogSerializer
 )
 from .permissions import IsAdminOuDonoDaCampanha
 from django.db.models import Q
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -49,11 +51,62 @@ class CampanhaViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         user = self.request.user
         if hasattr(user, 'perfil_parceiro'):
-            serializer.save(parceiro=user.perfil_parceiro)
+            campanha = serializer.save(parceiro=user.perfil_parceiro)
         else:
-            # Caso o ADMIN_HED tente criar, teríamos que exigir o parceiro no payload.
-            # Por hora, como o fluxo é o Parceiro criando, salvaremos normalmente.
-            serializer.save()
+            campanha = serializer.save()
+        
+        AuditoriaLog.objects.create(
+            usuario=user,
+            usuario_str=user.username,
+            acao='CAMPANHA_CRIACAO',
+            descricao=f"Criou a campanha '{campanha.nome}' (ID: {campanha.id}) no turno {campanha.turno}."
+        )
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        old_instance = self.get_object()
+        old_status = old_instance.status
+        
+        campanha = serializer.save()
+        
+        # Log se o status mudou (ex: aprovada, pausada)
+        if old_status != campanha.status:
+            if campanha.status == 'APROVADA':
+                acao = 'CAMPANHA_APROVACAO'
+                desc = f"Aprovou a campanha '{campanha.nome}' (ID: {campanha.id})."
+            elif campanha.status == 'PAUSADA':
+                acao = 'CAMPANHA_PAUSA'
+                desc = f"Pausou a campanha '{campanha.nome}' (ID: {campanha.id})."
+            else:
+                acao = 'CAMPANHA_PAUSA'
+                desc = f"Alterou o status da campanha '{campanha.nome}' (ID: {campanha.id}) para {campanha.status}."
+            
+            AuditoriaLog.objects.create(
+                usuario=user,
+                usuario_str=user.username,
+                acao=acao,
+                descricao=desc
+            )
+        else:
+            AuditoriaLog.objects.create(
+                usuario=user,
+                usuario_str=user.username,
+                acao='CAMPANHA_CRIACAO',
+                descricao=f"Atualizou os dados da campanha '{campanha.nome}' (ID: {campanha.id})."
+            )
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        campanha_nome = instance.nome
+        campanha_id = instance.id
+        instance.delete()
+        
+        AuditoriaLog.objects.create(
+            usuario=user,
+            usuario_str=user.username,
+            acao='CAMPANHA_EXCLUSAO',
+            descricao=f"Excluiu a campanha '{campanha_nome}' (ID: {campanha_id})."
+        )
 
 class MidiaViewSet(viewsets.ModelViewSet):
     queryset = Midia.objects.all()
@@ -118,13 +171,57 @@ class RegisterView(APIView):
             )
             
             # 2. Criar o Perfil de Parceiro associado
-            Parceiro.objects.create(
+            parceiro = Parceiro.objects.create(
                 usuario=user,
                 nome_empresa=data['nome_empresa'],
                 cnpj=data.get('cnpj', ''),
                 telefone=data.get('telefone', '')
             )
             
+            # Gravar Log de Auditoria
+            AuditoriaLog.objects.create(
+                usuario=user,
+                usuario_str=user.username,
+                acao='REGISTRO_PARCEIRO',
+                descricao=f"Novo parceiro cadastrado: '{parceiro.nome_empresa}' (ID Usuário: {user.id})."
+            )
+
             return Response({"message": "Usuário criado com sucesso!"}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class AuditedTokenObtainPairView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        username = request.data.get('username')
+        try:
+            response = super().post(request, *args, **kwargs)
+            # Se chegou aqui, login deu certo
+            user = get_user_model().objects.get(username=username)
+            AuditoriaLog.objects.create(
+                usuario=user,
+                usuario_str=username,
+                acao='LOGIN_SUCESSO',
+                descricao=f"Usuário '{username}' autenticou-se com sucesso no painel."
+            )
+            return response
+        except Exception as e:
+            # Login falhou
+            AuditoriaLog.objects.create(
+                usuario=None,
+                usuario_str=username or "desconhecido",
+                acao='LOGIN_FALHA',
+                descricao=f"Tentativa de login malsucedida para o usuário '{username}'. Erro: {str(e)}"
+            )
+            raise e
+
+class AuditoriaLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = AuditoriaLog.objects.all().order_by('-criado_em')
+    serializer_class = AuditoriaLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        # Apenas admins podem ver logs do sistema
+        if user.is_superuser or (hasattr(user, 'tipo_usuario') and user.tipo_usuario == 'ADMIN_HED'):
+            return AuditoriaLog.objects.all().order_by('-criado_em')
+        return AuditoriaLog.objects.none()
