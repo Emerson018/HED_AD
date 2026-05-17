@@ -143,8 +143,8 @@ const PlayerView = () => {
   return (
     <Box sx={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', bgcolor: '#000' }}>
       
-      {/* ÁREA PRINCIPAL (85% ou 100%) */}
-      <Box sx={{ flex: isClean ? 10 : 8.5, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
+      {/* ÁREA PRINCIPAL (92% ou 100%) */}
+      <Box sx={{ flex: isClean ? 10 : 9.2, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
         {isVideo ? (
           <video 
             key={currentCampanha.id}
@@ -165,43 +165,46 @@ const PlayerView = () => {
         )}
       </Box>
 
-      {/* L-BAR (15%) */}
+      {/* L-BAR (8% - Simbólico) */}
       {!isClean && (
         <Box sx={{ 
-          flex: 1.5, 
+          flex: 0.8, 
           bgcolor: '#003B67', 
           color: '#d3d3d3', 
           display: 'flex', 
           flexDirection: 'column',
-          borderLeft: '4px solid #068dbd',
-          p: 2
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderLeft: '3px solid #068dbd',
+          p: 1.5,
+          boxSizing: 'border-box'
         }}>
           
           {/* Logo HED */}
-          <Box sx={{ flex: 1, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', pt: 2, px: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', pt: 1, width: '100%' }}>
             <Box 
               component="img"
               src={logoHed}
               alt="Hospital Ernesto Dornelles"
-              sx={{ width: '100%', maxWidth: '240px', height: 'auto', objectFit: 'contain' }}
+              sx={{ width: '100%', maxWidth: '110px', height: 'auto', objectFit: 'contain' }}
             />
           </Box>
 
           {/* Widget: Relógio */}
-          <Box sx={{ flex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <AccessTimeIcon sx={{ fontSize: 40, color: '#068dbd', mb: 1 }} />
-            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 'bold' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', my: 2 }}>
+            <AccessTimeIcon sx={{ fontSize: 24, color: '#068dbd', mb: 0.5 }} />
+            <Typography sx={{ color: '#fff', fontWeight: 'bold', fontSize: '1.4rem', lineHeight: 1 }}>
               {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Typography>
-            <Typography variant="subtitle1" sx={{ color: '#d3d3d3' }}>
-              {time.toLocaleDateString()}
+            <Typography sx={{ color: '#d3d3d3', fontSize: '0.7rem', opacity: 0.8, mt: 0.5 }}>
+              {time.toLocaleDateString([], { day: '2-digit', month: '2-digit' })}
             </Typography>
           </Box>
 
           {/* Widget: Dicas de Saúde */}
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', pb: 2, textAlign: 'center' }}>
-            <FavoriteIcon sx={{ color: '#068dbd', mb: 1, fontSize: 32 }} />
-            <Typography variant="body1" sx={{ fontWeight: 500, lineHeight: 1.4 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pb: 1, textAlign: 'center', width: '100%' }}>
+            <FavoriteIcon sx={{ color: '#068dbd', mb: 0.5, fontSize: 20 }} />
+            <Typography sx={{ fontWeight: 500, lineHeight: 1.3, fontSize: '0.7rem' }}>
               {DICAS_SAUDE[dicaIndex]}
             </Typography>
           </Box>
