@@ -19,6 +19,7 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const MinhasCampanhas = () => {
   const [campanhas, setCampanhas] = useState([]);
@@ -38,6 +39,18 @@ const MinhasCampanhas = () => {
       console.error("Erro ao buscar campanhas", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm("Tem certeza que deseja excluir esta campanha? Esta ação não pode ser desfeita.")) {
+      try {
+        await api.delete(`campanhas/${id}/`);
+        fetchCampanhas();
+      } catch (error) {
+        console.error("Erro ao excluir campanha", error);
+        alert("Não foi possível excluir esta campanha.");
+      }
     }
   };
 
@@ -90,7 +103,22 @@ const MinhasCampanhas = () => {
           ) : (
             campanhas.map((c, index) => (
               <React.Fragment key={c.id}>
-                <ListItem sx={{ py: 2 }}>
+                <ListItem 
+                  sx={{ py: 2 }}
+                  secondaryAction={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Chip 
+                        label={c.status.replace('_', ' ')} 
+                        color={getStatusColor(c.status)} 
+                        variant="filled"
+                        sx={{ fontWeight: 'bold' }}
+                      />
+                      <IconButton edge="end" aria-label="delete" onClick={() => handleDelete(c.id)} sx={{ color: 'error.main' }}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  }
+                >
                   <ListItemText 
                     primary={
                       <Typography variant="h6" fontWeight="medium">
@@ -98,12 +126,6 @@ const MinhasCampanhas = () => {
                       </Typography>
                     } 
                     secondary={`Início: ${new Date(c.data_inicio).toLocaleDateString()} - Fim: ${new Date(c.data_fim).toLocaleDateString()}`} 
-                  />
-                  <Chip 
-                    label={c.status.replace('_', ' ')} 
-                    color={getStatusColor(c.status)} 
-                    variant="filled"
-                    sx={{ fontWeight: 'bold' }}
                   />
                 </ListItem>
                 {index < campanhas.length - 1 && <Divider />}
