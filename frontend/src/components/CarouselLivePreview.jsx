@@ -44,7 +44,7 @@ const CarouselLivePreview = ({ campanhas, turno }) => {
   const midia = currentCampanha.midias?.[0];
 
   return (
-    <Paper elevation={4} sx={{ overflow: 'hidden', borderRadius: 4, bgcolor: '#000', position: 'relative' }}>
+    <Paper elevation={4} sx={{ width: '100%', overflow: 'hidden', borderRadius: 4, bgcolor: '#000', position: 'relative' }}>
       {/* Mini Player */}
       <Box sx={{ position: 'relative', pt: '56.25%', bgcolor: '#000' }}>
         <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
