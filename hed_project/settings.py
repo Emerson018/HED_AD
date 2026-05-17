@@ -50,6 +50,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'signage.middleware.DatabaseSelectorMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -89,7 +90,7 @@ DATABASES = {
 }
 
 if os.environ.get('SUPABASE_DB_HOST'):
-    DATABASES['default'] = {
+    DATABASES['supabase'] = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('SUPABASE_DB_NAME', 'postgres'),
         'USER': os.environ.get('SUPABASE_DB_USER', 'postgres'),
@@ -99,6 +100,10 @@ if os.environ.get('SUPABASE_DB_HOST'):
         'CONN_MAX_AGE': 600,
         'CONN_HEALTH_CHECKS': True,
     }
+else:
+    DATABASES['supabase'] = DATABASES['default']
+
+DATABASE_ROUTERS = ['signage.db_router.DynamicDBRouter']
 
 AUTH_USER_MODEL = 'signage.Usuario'
 CORS_ALLOW_ALL_ORIGINS = True
