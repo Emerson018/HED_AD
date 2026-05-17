@@ -96,6 +96,8 @@ if os.environ.get('SUPABASE_DB_HOST'):
         'PASSWORD': os.environ.get('SUPABASE_DB_PASSWORD', ''),
         'HOST': os.environ.get('SUPABASE_DB_HOST', ''),
         'PORT': os.environ.get('SUPABASE_DB_PORT', '5432'),
+        'CONN_MAX_AGE': 600,
+        'CONN_HEALTH_CHECKS': True,
     }
 
 AUTH_USER_MODEL = 'signage.Usuario'
