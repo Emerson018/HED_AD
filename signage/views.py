@@ -126,15 +126,19 @@ class TVPlaylistView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        now = datetime.datetime.now().time()
+        turno_param = request.query_params.get('turno')
         
-        # Determina o turno atual
-        if datetime.time(7, 0) <= now < datetime.time(12, 0):
-            turno_atual = 'MANHA'
-        elif datetime.time(12, 0) <= now < datetime.time(18, 0):
-            turno_atual = 'TARDE'
+        if turno_param in ['MANHA', 'TARDE', 'NOITE']:
+            turno_atual = turno_param
         else:
-            turno_atual = 'NOITE'
+            now = datetime.datetime.now().time()
+            # Determina o turno atual
+            if datetime.time(7, 0) <= now < datetime.time(12, 0):
+                turno_atual = 'MANHA'
+            elif datetime.time(12, 0) <= now < datetime.time(18, 0):
+                turno_atual = 'TARDE'
+            else:
+                turno_atual = 'NOITE'
 
         # Filtra campanhas aprovadas para o turno atual ou Integrais
         campanhas_ativas = Campanha.objects.filter(

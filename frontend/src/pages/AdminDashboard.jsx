@@ -49,6 +49,8 @@ const AdminDashboard = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCampanha, setSelectedCampanha] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [campanhaToDelete, setCampanhaToDelete] = useState(null);
   const navigate = useNavigate();
   
   // Stats
@@ -144,14 +146,21 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Tem certeza que deseja excluir esta campanha? Esta ação não pode ser desfeita.")) {
-      try {
-        await api.delete(`campanhas/${id}/`);
-        fetchData();
-      } catch (error) {
-        console.error("Erro ao excluir", error);
-      }
+  const handleOpenDelete = (campanha) => {
+    setCampanhaToDelete(campanha);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!campanhaToDelete) return;
+    try {
+      await api.delete(`campanhas/${campanhaToDelete.id}/`);
+      setDeleteDialogOpen(false);
+      setCampanhaToDelete(null);
+      fetchData();
+    } catch (error) {
+      console.error("Erro ao excluir", error);
+      alert("Não foi possível excluir esta campanha.");
     }
   };
 
@@ -272,7 +281,19 @@ const AdminDashboard = () => {
           const percent = Math.min((used / 300) * 100, 100);
           return (
             <Grid item xs={12} md={4} key={t.key}>
-              <Paper sx={{ p: 2, borderRadius: 3 }}>
+              <Paper 
+                onClick={() => navigate(`/admin/preview?turno=${t.key}`)}
+                sx={{ 
+                  p: 2, 
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-3px)',
+                    boxShadow: 6
+                  }
+                }}
+              >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="subtitle2" fontWeight="bold">{t.label}</Typography>
                   <Typography variant="caption" fontWeight="bold" color={used > 300 ? 'error' : 'textSecondary'}>
@@ -367,7 +388,7 @@ const AdminDashboard = () => {
                         </Button>
                       )}
                       <Tooltip title="Excluir">
-                        <IconButton size="small" color="error" onClick={() => handleDelete(c.id)}>
+                        <IconButton size="small" color="error" onClick={() => handleOpenDelete(c)}>
                           <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
@@ -516,6 +537,38 @@ const AdminDashboard = () => {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        PaperProps={{ sx: { borderRadius: 4, backgroundImage: 'none' } }}
+      >
+        <DialogTitle sx={{ fontWeight: 'bold', pt: 3, px: 3 }}>
+          Confirmar Exclusão
+        </DialogTitle>
+        <DialogContent sx={{ px: 3 }}>
+          <Typography>
+            Tem certeza de que deseja excluir a campanha <strong>{campanhaToDelete?.nome}</strong>?
+          </Typography>
+          <Typography variant="body2" color="error" sx={{ mt: 1, fontWeight: 'bold' }}>
+            Esta ação é definitiva e removerá todos os agendamentos e mídias vinculadas.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, bgcolor: 'action.hover' }}>
+          <Button onClick={() => setDeleteDialogOpen(false)} variant="text" color="inherit" sx={{ fontWeight: 'bold' }}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete} 
+            variant="contained" 
+            color="error" 
+            sx={{ px: 4, borderRadius: 3, fontWeight: 'bold' }}
+          >
+            Excluir Definitivamente
+          </Button>
+        </DialogActions>
       </Dialog>
     </Container>
   );

@@ -20,22 +20,32 @@ import HomeIcon from '@mui/icons-material/Home';
 import TvIcon from '@mui/icons-material/Tv';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import LaunchIcon from '@mui/icons-material/Launch';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import CarouselLivePreview from '../components/CarouselLivePreview';
 
 const AdminPreview = () => {
+  const [searchParams] = useSearchParams();
+  const forcedTurno = searchParams.get('turno');
+
   const [campanhas, setCampanhas] = useState([]);
-  const [turno, setTurno] = useState('MANHA');
+  const [turno, setTurno] = useState(
+    forcedTurno && ['MANHA', 'TARDE', 'NOITE'].includes(forcedTurno.toUpperCase()) 
+      ? forcedTurno.toUpperCase() 
+      : 'MANHA'
+  );
   const [loading, setLoading] = useState(true);
   const [tokenInput, setTokenInput] = useState('tv_sala_espera');
   const navigate = useNavigate();
 
   const getPlayerUrl = (clean = false) => {
     const base = `${window.location.protocol}//${window.location.host}`;
-    return clean 
-      ? `${base}/tv/player/${tokenInput}?clean=true` 
-      : `${base}/tv/player/${tokenInput}`;
+    const queryParams = [];
+    if (clean) queryParams.push('clean=true');
+    if (turno) queryParams.push(`turno=${turno}`);
+    
+    const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+    return `${base}/tv/player/${tokenInput}${queryString}`;
   };
 
   useEffect(() => {

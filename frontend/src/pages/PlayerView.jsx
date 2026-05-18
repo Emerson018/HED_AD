@@ -48,7 +48,9 @@ const PlayerView = () => {
   useEffect(() => {
     const initPlayer = async () => {
       try {
-        const res = await api.get('tv/playlist/');
+        const forcedTurno = searchParams.get('turno');
+        const playlistUrl = forcedTurno ? `tv/playlist/?turno=${forcedTurno}` : 'tv/playlist/';
+        const res = await api.get(playlistUrl);
         const campanhas = res.data;
         
         if (campanhas.length === 0) {
