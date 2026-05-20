@@ -26,6 +26,8 @@ import Brightness7Icon from '@mui/icons-material/Brightness7';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import TvIcon from '@mui/icons-material/Tv';
 import HistoryIcon from '@mui/icons-material/History';
+import HelpIcon from '@mui/icons-material/Help';
+import GavelIcon from '@mui/icons-material/Gavel';
 
 const drawerWidth = 260;
 
@@ -42,6 +44,7 @@ const Layout = ({ children, toggleTheme, mode }) => {
 
   const handleLogout = () => {
     localStorage.clear();
+    localStorage.setItem('logout_success', 'true');
     navigate('/login');
   };
 
@@ -139,6 +142,48 @@ const Layout = ({ children, toggleTheme, mode }) => {
         <Box sx={{ p: 2 }}>
           <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', mb: 2 }} />
           
+          {/* FAQ */}
+          <Tooltip title={!open ? "Perguntas Frequentes (FAQ)" : ""} placement="right">
+            <ListItemButton 
+              onClick={() => navigate('/faq')}
+              sx={{ 
+                borderRadius: 2, 
+                justifyContent: open ? 'initial' : 'center',
+                px: 2.5,
+                mb: 0.5,
+                bgcolor: location.pathname === '/faq' ? 'rgba(255,255,255,0.15)' : 'transparent',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', color: 'white' }}>
+                <HelpIcon />
+              </ListItemIcon>
+              {open && <ListItemText primary="Dúvidas (FAQ)" />}
+            </ListItemButton>
+          </Tooltip>
+
+          {/* Termos de Uso */}
+          <Tooltip title={!open ? "Termos de Uso" : ""} placement="right">
+            <ListItemButton 
+              onClick={() => navigate('/termos')}
+              sx={{ 
+                borderRadius: 2, 
+                justifyContent: open ? 'initial' : 'center',
+                px: 2.5,
+                mb: 1,
+                bgcolor: location.pathname === '/termos' ? 'rgba(255,255,255,0.15)' : 'transparent',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', color: 'white' }}>
+                <GavelIcon />
+              </ListItemIcon>
+              {open && <ListItemText primary="Termos de Uso" />}
+            </ListItemButton>
+          </Tooltip>
+
+          <Divider sx={{ bgcolor: 'rgba(255,255,255,0.1)', my: 1.5 }} />
+
           {/* Theme Toggle */}
           <Tooltip title={mode === 'light' ? 'Modo Escuro' : 'Modo Claro'} placement="right">
             <ListItemButton 

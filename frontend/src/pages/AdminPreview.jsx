@@ -27,12 +27,23 @@ import CarouselLivePreview from '../components/CarouselLivePreview';
 const AdminPreview = () => {
   const [searchParams] = useSearchParams();
   const forcedTurno = searchParams.get('turno');
+  const forcedDia = searchParams.get('dia');
+
+  const getTodayPyWeekday = () => {
+    const jsDay = new Date().getDay();
+    return jsDay === 0 ? 6 : jsDay - 1;
+  };
 
   const [campanhas, setCampanhas] = useState([]);
   const [turno, setTurno] = useState(
-    forcedTurno && ['MANHA', 'TARDE', 'NOITE'].includes(forcedTurno.toUpperCase()) 
+    forcedTurno && ['MANHA', 'TARDE', 'NOITE', 'MADRUGADA'].includes(forcedTurno.toUpperCase()) 
       ? forcedTurno.toUpperCase() 
       : 'MANHA'
+  );
+  const [diaSemana, setDiaSemana] = useState(
+    forcedDia !== null && !isNaN(parseInt(forcedDia))
+      ? parseInt(forcedDia)
+      : getTodayPyWeekday()
   );
   const [loading, setLoading] = useState(true);
   const [tokenInput, setTokenInput] = useState('tv_sala_espera');
@@ -43,6 +54,7 @@ const AdminPreview = () => {
     const queryParams = [];
     if (clean) queryParams.push('clean=true');
     if (turno) queryParams.push(`turno=${turno}`);
+    queryParams.push(`dia=${diaSemana}`);
     
     const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
     return `${base}/tv/player/${tokenInput}${queryString}`;
@@ -99,9 +111,10 @@ const AdminPreview = () => {
             onChange={(e) => setTurno(e.target.value)}
             sx={{ width: 180 }}
           >
-            <MenuItem value="MANHA">Manhã (07h - 12h)</MenuItem>
+            <MenuItem value="MANHA">Manhã (06h - 12h)</MenuItem>
             <MenuItem value="TARDE">Tarde (12h - 18h)</MenuItem>
-            <MenuItem value="NOITE">Noite (18h - 07h)</MenuItem>
+            <MenuItem value="NOITE">Noite (18h - 00h)</MenuItem>
+            <MenuItem value="MADRUGADA">Madrugada (00h - 06h)</MenuItem>
           </TextField>
         </Paper>
       </Box>
@@ -152,10 +165,10 @@ const AdminPreview = () => {
 
         <Grid container spacing={3}>
           {/* Card 1: L-Bar */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12}>
             <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover' }}>
               <Typography variant="subtitle1" fontWeight="bold" color="text.primary" gutterBottom>
-                1. Player Institucional (Com L-Bar)
+                Player Institucional
               </Typography>
               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                 Layout padrão contendo a identidade do hospital, relógio em tempo real, dicas de saúde e o vídeo da campanha à esquerda (80% / 20%).
@@ -184,50 +197,6 @@ const AdminPreview = () => {
                   size="small"
                   onClick={() => {
                     navigator.clipboard.writeText(getPlayerUrl(false));
-                    alert('Link copiado para a área de transferência!');
-                  }}
-                  startIcon={<ContentCopyIcon />}
-                  sx={{ textTransform: 'none' }}
-                >
-                  Copiar Link
-                </Button>
-              </Box>
-            </Paper>
-          </Grid>
-
-          {/* Card 2: Vídeo Puro */}
-          <Grid item xs={12} md={6}>
-            <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'action.hover' }}>
-              <Typography variant="subtitle1" fontWeight="bold" color="text.primary" gutterBottom>
-                2. Player de Vídeo Puro (Tela Cheia)
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                Layout limpo sem máscara institucional. Ideal para TVs que devem passar apenas os vídeos das campanhas em tela cheia (100%).
-              </Typography>
-
-              <TextField
-                fullWidth
-                size="small"
-                value={getPlayerUrl(true)}
-                InputProps={{ readOnly: true }}
-                sx={{ mb: 2, bgcolor: 'background.paper' }}
-              />
-
-              <Box sx={{ display: 'flex', gap: 1.5 }}>
-                <Button 
-                  variant="contained" 
-                  size="small"
-                  onClick={() => window.open(getPlayerUrl(true), '_blank')}
-                  startIcon={<LaunchIcon />}
-                  sx={{ textTransform: 'none' }}
-                >
-                  Abrir Player
-                </Button>
-                <Button 
-                  variant="outlined" 
-                  size="small"
-                  onClick={() => {
-                    navigator.clipboard.writeText(getPlayerUrl(true));
                     alert('Link copiado para a área de transferência!');
                   }}
                   startIcon={<ContentCopyIcon />}

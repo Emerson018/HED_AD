@@ -15,11 +15,12 @@ import {
 import AddCircleIcon from '@mui/icons-material/AddCircle';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import CampaignIcon from '@mui/icons-material/Campaign';
+import HistoryIcon from '@mui/icons-material/History';
 // LogoutIcon removido pois está no Layout
 
 
 const ParceiroHome = () => {
-  const [stats, setStats] = useState({ total: 0, aprovadas: 0, pendentes: 0, totalExibicoes: 0 });
+  const [stats, setStats] = useState({ total: 0, aprovadas: 0, pendentes: 0, totalExibicoes: 0, expiradas: 0 });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -30,9 +31,10 @@ const ParceiroHome = () => {
         const data = res.data;
         setStats({
           total: data.length,
-          aprovadas: data.filter(c => c.status === 'APROVADA').length,
+          aprovadas: data.filter(c => c.status === 'APROVADA' || c.status === 'ATIVA').length,
           pendentes: data.filter(c => c.status === 'EM_ANALISE').length,
-          totalExibicoes: data.reduce((acc, curr) => acc + (curr.total_exibicoes || 0), 0)
+          totalExibicoes: data.reduce((acc, curr) => acc + (curr.total_exibicoes || 0), 0),
+          expiradas: data.filter(c => c.status === 'EXPIRADA').length
         });
       } catch (err) {
         console.error("Erro ao buscar estatísticas", err);
@@ -59,7 +61,7 @@ const ParceiroHome = () => {
 
       {/* Cards de Resumo */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ 
             bgcolor: 'primary.main', 
             color: 'white', 
@@ -75,7 +77,7 @@ const ParceiroHome = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ 
             bgcolor: '#2e7d32', 
             color: 'white', 
@@ -91,7 +93,7 @@ const ParceiroHome = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ 
             bgcolor: '#ed6c02', 
             color: 'white', 
@@ -100,14 +102,14 @@ const ParceiroHome = () => {
             '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
           }}>
             <CardContent>
-              <Typography variant="subtitle1" fontWeight="bold">Em Análise</Typography>
+              <Typography variant="subtitle1" fontWeight="bold">Pendente</Typography>
               {loading ? <Skeleton variant="text" width={40} height={60} /> : (
                 <Typography variant="h3" fontWeight="bold" sx={{ color: '#fff' }}>{stats.pendentes}</Typography>
               )}
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card sx={{ 
             bgcolor: '#068dbd', 
             color: 'white', 
@@ -121,6 +123,25 @@ const ParceiroHome = () => {
                 <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
                   <Typography variant="h3" fontWeight="bold" sx={{ color: '#fff' }}>{stats.totalExibicoes}</Typography>
                   <BarChartIcon sx={{ color: 'rgba(255,255,255,0.5)' }} />
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card sx={{ 
+            bgcolor: '#78909c', 
+            color: 'white', 
+            borderRadius: 3,
+            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
+            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
+          }}>
+            <CardContent>
+              <Typography variant="subtitle1" fontWeight="bold">Expiradas</Typography>
+              {loading ? <Skeleton variant="text" width={40} height={60} /> : (
+                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                  <Typography variant="h3" fontWeight="bold" sx={{ color: '#fff' }}>{stats.expiradas}</Typography>
+                  <HistoryIcon sx={{ color: 'rgba(255,255,255,0.5)' }} />
                 </Box>
               )}
             </CardContent>

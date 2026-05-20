@@ -20,7 +20,14 @@ import {
   CardContent,
   Stack,
   CircularProgress,
-  InputAdornment
+  InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  IconButton,
+  Divider
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -28,6 +35,11 @@ import HistoryIcon from '@mui/icons-material/History';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import CampaignIcon from '@mui/icons-material/Campaign';
+import CloseIcon from '@mui/icons-material/Close';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import EventIcon from '@mui/icons-material/Event';
+import FingerprintIcon from '@mui/icons-material/Fingerprint';
+import SecurityIcon from '@mui/icons-material/Security';
 
 const SystemLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -41,6 +53,9 @@ const SystemLogs = () => {
   // Paginação
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Dialog de detalhes do Log
+  const [selectedLog, setSelectedLog] = useState(null);
 
   useEffect(() => {
     fetchLogs();
@@ -68,12 +83,16 @@ const SystemLogs = () => {
         return { label: 'Falha de Login', color: 'error', variant: 'filled' };
       case 'CAMPANHA_CRIACAO':
         return { label: 'Criação', color: 'primary', variant: 'outlined' };
+      case 'CAMPANHA_EDICAO':
+        return { label: 'Edição', color: 'warning', variant: 'outlined' };
       case 'CAMPANHA_APROVACAO':
         return { label: 'Aprovação', color: 'success', variant: 'outlined' };
       case 'CAMPANHA_EXCLUSAO':
         return { label: 'Exclusão', color: 'error', variant: 'outlined' };
       case 'CAMPANHA_PAUSA':
         return { label: 'Pausa', color: 'warning', variant: 'outlined' };
+      case 'CAMPANHA_EXPIRADA':
+        return { label: 'Expirada', color: 'default', variant: 'filled' };
       case 'UPLOAD_VIDEO':
         return { label: 'Upload Mídia', color: 'secondary', variant: 'outlined' };
       case 'REGISTRO_PARCEIRO':
@@ -154,49 +173,52 @@ const SystemLogs = () => {
       {/* Grid de Estatísticas */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid #003B67' }}>
+          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid', borderColor: 'primary.main' }}>
             <CardContent>
-              <Typography variant="body2" color="textSecondary" fontWeight="bold">Total de Atividades</Typography>
-              <Typography variant="h4" fontWeight="bold" color="primary" sx={{ mt: 1 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
+                <Typography variant="body2" color="textSecondary" fontWeight="bold">Total de Atividades</Typography>
+                <HistoryIcon sx={{ color: 'primary.main' }} />
+              </Stack>
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'primary.main' }}>
                 {stats.total}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid #2e7d32' }}>
+          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid', borderColor: 'success.main' }}>
             <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
                 <Typography variant="body2" color="textSecondary" fontWeight="bold">Logins Bem Sucedidos</Typography>
                 <CheckCircleIcon sx={{ color: 'success.main' }} />
               </Stack>
-              <Typography variant="h4" fontWeight="bold" color="success.main" sx={{ mt: 1 }}>
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'success.main' }}>
                 {stats.successLogins}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid #d32f2f' }}>
+          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid', borderColor: 'error.main' }}>
             <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
                 <Typography variant="body2" color="textSecondary" fontWeight="bold">Falhas de Login</Typography>
                 <ErrorIcon sx={{ color: 'error.main' }} />
               </Stack>
-              <Typography variant="h4" fontWeight="bold" color="error.main" sx={{ mt: 1 }}>
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'error.main' }}>
                 {stats.failedLogins}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid #0288d1' }}>
+          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid', borderColor: 'info.main' }}>
             <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
                 <Typography variant="body2" color="textSecondary" fontWeight="bold">Novas Campanhas</Typography>
                 <CampaignIcon sx={{ color: 'info.main' }} />
               </Stack>
-              <Typography variant="h4" fontWeight="bold" color="info.main" sx={{ mt: 1 }}>
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'info.main' }}>
                 {stats.campaignCreations}
               </Typography>
             </CardContent>
@@ -214,6 +236,7 @@ const SystemLogs = () => {
               fullWidth
               variant="outlined"
               size="small"
+              label="Buscar por descrição ou usuário"
               placeholder="Buscar por usuário, descrição..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(0); }}
@@ -247,9 +270,11 @@ const SystemLogs = () => {
               <MenuItem value="LOGIN_SUCESSO">Login (Sucesso)</MenuItem>
               <MenuItem value="LOGIN_FALHA">Tentativa (Falha)</MenuItem>
               <MenuItem value="CAMPANHA_CRIACAO">Criação de Campanha</MenuItem>
+              <MenuItem value="CAMPANHA_EDICAO">Edição de Campanha</MenuItem>
               <MenuItem value="CAMPANHA_APROVACAO">Aprovação de Campanha</MenuItem>
               <MenuItem value="CAMPANHA_EXCLUSAO">Exclusão de Campanha</MenuItem>
               <MenuItem value="CAMPANHA_PAUSA">Pausa de Campanha</MenuItem>
+              <MenuItem value="CAMPANHA_EXPIRADA">Campanha Expirada</MenuItem>
               <MenuItem value="UPLOAD_VIDEO">Upload Mídia</MenuItem>
               <MenuItem value="REGISTRO_PARCEIRO">Novos Cadastros</MenuItem>
             </TextField>
@@ -274,7 +299,15 @@ const SystemLogs = () => {
                   .map((log) => {
                     const chipStyle = getActionStyles(log.acao);
                     return (
-                      <TableRow key={log.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                      <TableRow 
+                        key={log.id} 
+                        hover 
+                        onClick={() => setSelectedLog(log)}
+                        sx={{ 
+                          cursor: 'pointer',
+                          '&:last-child td, &:last-child th': { border: 0 }
+                        }}
+                      >
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>
                           {new Date(log.criado_em).toLocaleString('pt-BR')}
                         </TableCell>
@@ -287,7 +320,7 @@ const SystemLogs = () => {
                             color={chipStyle.color} 
                             variant={chipStyle.variant} 
                             size="small"
-                            sx={{ fontWeight: 'bold' }}
+                            sx={{ fontWeight: 'bold', cursor: 'pointer' }}
                           />
                         </TableCell>
                         <TableCell sx={{ color: 'text.secondary' }}>
@@ -323,6 +356,120 @@ const SystemLogs = () => {
           labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count !== -1 ? count : `mais de ${to}`}`}
         />
       </Paper>
+
+      {/* Dialog para Detalhes do Log */}
+      <Dialog 
+        open={Boolean(selectedLog)} 
+        onClose={() => setSelectedLog(null)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: { borderRadius: 4, overflow: 'hidden' }
+        }}
+      >
+        {selectedLog && (() => {
+          const chipStyle = getActionStyles(selectedLog.acao);
+          
+          let accentColor = '#003B67';
+          let ActionIconComponent = HistoryIcon;
+
+          if (selectedLog.acao === 'LOGIN_SUCESSO' || selectedLog.acao === 'CAMPANHA_APROVACAO') {
+            accentColor = '#2e7d32';
+            ActionIconComponent = CheckCircleIcon;
+          } else if (selectedLog.acao === 'LOGIN_FALHA' || selectedLog.acao === 'CAMPANHA_EXCLUSAO') {
+            accentColor = '#d32f2f';
+            ActionIconComponent = ErrorIcon;
+          } else if (selectedLog.acao === 'CAMPANHA_EDICAO' || selectedLog.acao === 'CAMPANHA_PAUSA') {
+            accentColor = '#ed6c02';
+            ActionIconComponent = SecurityIcon;
+          } else if (selectedLog.acao === 'CAMPANHA_CRIACAO' || selectedLog.acao === 'UPLOAD_VIDEO' || selectedLog.acao === 'REGISTRO_PARCEIRO') {
+            accentColor = '#0288d1';
+            ActionIconComponent = CampaignIcon;
+          }
+
+          return (
+            <>
+              {/* Header do Dialog */}
+              <Box sx={{ bgcolor: accentColor, color: 'white', px: 3, py: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Stack direction="row" alignItems="center" spacing={1.5}>
+                  <ActionIconComponent sx={{ fontSize: '1.8rem' }} />
+                  <Typography variant="h6" fontWeight="bold">Detalhes da Atividade</Typography>
+                </Stack>
+                <IconButton onClick={() => setSelectedLog(null)} size="small" sx={{ color: 'white' }}>
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+
+              <DialogContent sx={{ p: 3 }}>
+                {/* Tipo de Ação (Badge) */}
+                <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Chip 
+                    label={chipStyle.label} 
+                    color={chipStyle.color} 
+                    variant="filled" 
+                    size="medium"
+                    sx={{ fontWeight: 'bold', fontSize: '0.8rem', px: 1 }}
+                  />
+                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
+                    <FingerprintIcon fontSize="small" />
+                    <Typography variant="body2" fontWeight="bold">ID: #{selectedLog.id}</Typography>
+                  </Stack>
+                </Box>
+
+                {/* Grid de Metadados */}
+                <Grid container spacing={2} sx={{ mb: 3 }}>
+                  <Grid item xs={12} sm={6}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <AccountCircleIcon sx={{ color: 'primary.main', fontSize: '2rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" display="block">USUÁRIO AUTOR</Typography>
+                        <Typography variant="body1" fontWeight="bold">{selectedLog.usuario_str}</Typography>
+                      </Box>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <EventIcon sx={{ color: 'secondary.main', fontSize: '2rem' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" display="block">DATA E HORA</Typography>
+                        <Typography variant="body1" fontWeight="bold" sx={{ fontSize: '0.9rem' }}>
+                          {new Date(selectedLog.criado_em).toLocaleString('pt-BR')}
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  </Grid>
+                </Grid>
+
+                <Divider sx={{ my: 2 }} />
+
+                {/* Descrição Principal */}
+                <Typography variant="subtitle2" color="text.secondary" fontWeight="bold" gutterBottom sx={{ mb: 1 }}>
+                  DESCRIÇÃO DA OPERAÇÃO
+                </Typography>
+                <Paper sx={{ p: 2.5, borderRadius: 3, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.5, fontWeight: 'medium' }}>
+                    {selectedLog.descricao}
+                  </Typography>
+                </Paper>
+
+                {/* Mensagem de Compliance */}
+                <Box sx={{ mt: 3, display: 'flex', gap: 1, alignItems: 'flex-start', opacity: 0.8 }}>
+                  <SecurityIcon fontSize="small" color="action" sx={{ mt: 0.2 }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Este log de auditoria é gravado de forma imutável pelo sistema. Ele serve para conformidade, segurança e controle operacional do painel de anúncios HED.
+                  </Typography>
+                </Box>
+              </DialogContent>
+
+              <DialogActions sx={{ p: 2.5, pt: 0, justifyContent: 'flex-end' }}>
+                <Button onClick={() => setSelectedLog(null)} variant="contained" sx={{ px: 3, borderRadius: 2, fontWeight: 'bold' }}>
+                  Fechar
+                </Button>
+              </DialogActions>
+            </>
+          );
+        })()}
+      </Dialog>
     </Container>
   );
 };

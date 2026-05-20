@@ -13,6 +13,8 @@ import PlayerView from './pages/PlayerView';
 import Register from './pages/Register';
 import MinhasCampanhas from './pages/MinhasCampanhas';
 import SystemLogs from './pages/SystemLogs';
+import TermosDeUso from './pages/TermosDeUso';
+import Faq from './pages/Faq';
 
 const NotFound = () => <div style={{ padding: '2rem' }}><h2>Página não encontrada</h2></div>;
 
@@ -75,6 +77,14 @@ function App() {
             } 
           />
           <Route 
+            path="/parceiro/editar/:id" 
+            element={
+              <ProtectedRoute allowedRoles={['PARCEIRO']}>
+                <ParceiroDashboard isEdit={true} />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/parceiro/campanhas" 
             element={
               <ProtectedRoute allowedRoles={['PARCEIRO']}>
@@ -82,6 +92,16 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/admin/editar/:id" 
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN_HED']}>
+                <ParceiroDashboard isEdit={true} isAdmin={true} />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/termos" element={<TermosDeUso />} />
+          <Route path="/faq" element={<Faq />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
