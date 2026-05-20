@@ -124,17 +124,18 @@ const AdminPreview = () => {
         maxWidth: '1200px', 
         mx: 'auto', 
         p: 2, 
-        bgcolor: '#1a1a1a', 
+        bgcolor: 'background.default', 
         borderRadius: 5, 
-        boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-        border: '8px solid #333',
+        boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
+        border: '8px solid',
+        borderColor: 'divider',
         minHeight: '400px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
       }}>
         {loading ? (
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: 'white', py: 4 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: 'text.secondary', py: 4 }}>
             <CircularProgress color="inherit" />
             <Typography variant="body2" sx={{ opacity: 0.7 }}>Carregando simulação de transmissão...</Typography>
           </Box>

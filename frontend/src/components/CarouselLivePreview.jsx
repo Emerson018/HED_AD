@@ -58,8 +58,8 @@ const CarouselLivePreview = ({ campanhas, turno }) => {
 
   if (playlist.length === 0) {
     return (
-      <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'action.hover', borderRadius: 4, border: '2px dashed', borderColor: 'divider' }}>
-        <Typography color="textSecondary">Nenhuma campanha aprovada para o turno {turno}.</Typography>
+      <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'background.paper', borderRadius: 4, border: '2px dashed', borderColor: 'divider', width: '100%' }}>
+        <Typography color="text.secondary">Nenhuma campanha aprovada para o turno {turno}.</Typography>
       </Paper>
     );
   }
