@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../utils/api';
 import {
   Container,
@@ -55,8 +55,18 @@ import NightsStayIcon from '@mui/icons-material/NightsStay';
 import Brightness3Icon from '@mui/icons-material/Brightness3';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import GridViewIcon from '@mui/icons-material/GridView';
+import Pagination from '@mui/material/Pagination';
 
 const DIAS_NOMES = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+
+const TVS_OPCOES = [
+  { value: 'sala_espera', label: 'Sala de Espera' },
+  { value: 'recepcao', label: 'Recepção' },
+  { value: 'sala_cirurgia', label: 'Sala de Cirurgia' },
+  { value: 'corredor', label: 'Corredor Principal' }
+];
 
 const formatTurnosFull = (turnosList) => {
   if (!turnosList || turnosList.length === 0) return 'Nenhum';
@@ -159,6 +169,70 @@ const renderTurnosChips = (turnosList, isBelow = false) => {
   );
 };
 
+const formatTvsList = (tvsList) => {
+  if (!tvsList || tvsList.length === 0) return 'Nenhuma';
+  const map = {
+    'sala_espera': 'Sala de Espera',
+    'recepcao': 'Recepção',
+    'sala_cirurgia': 'Sala de Cirurgia',
+    'corredor': 'Corredor Principal'
+  };
+  return tvsList.map(t => map[t] || t).join(', ');
+};
+
+const renderTvsChips = (tvsList) => {
+  if (!tvsList || tvsList.length === 0) {
+    return (
+      <Chip 
+        label="Nenhuma" 
+        size="small" 
+        variant="outlined"
+        sx={{ fontSize: '0.7rem', fontWeight: 600, px: 0.5 }}
+      />
+    );
+  }
+
+  const map = {
+    'sala_espera': { label: 'Sala de Espera', color: 'primary' },
+    'recepcao': { label: 'Recepção', color: 'secondary' },
+    'sala_cirurgia': { label: 'Sala de Cirurgia', color: 'info' },
+    'corredor': { label: 'Corredor Principal', color: 'default' }
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+      {tvsList.map((t) => {
+        const conf = map[t] || { label: t, color: 'default' };
+        return (
+          <Chip
+            key={t}
+            label={conf.label}
+            size="small"
+            variant="outlined"
+            color={conf.color === 'default' ? 'default' : conf.color}
+            sx={{ fontSize: '0.7rem', fontWeight: 600, height: 20 }}
+          />
+        );
+      })}
+    </Box>
+  );
+};
+
+const getTodayPyWeekday = () => {
+  const jsDay = new Date().getDay(); // 0 is Sunday, 1 is Monday...
+  return jsDay === 0 ? 6 : jsDay - 1;
+};
+
+const getStatusColor = (status) => {
+  switch (status) {
+    case 'APROVADA': return 'success';
+    case 'EM_ANALISE': return 'warning';
+    case 'PAUSADA': return 'error';
+    case 'EXPIRADA': return 'default';
+    default: return 'default';
+  }
+};
+
 const AdminDashboard = () => {
   const [campanhas, setCampanhas] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -192,48 +266,90 @@ const AdminDashboard = () => {
   const [filterDuracao, setFilterDuracao] = useState('TODAS');
   const [filterTipo, setFilterTipo] = useState('TODOS');
 
-  const filteredCampanhas = campanhas.filter(c => {
-    const matchesSearch = c.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (c.parceiro_nome && c.parceiro_nome.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    let matchesTurno = false;
-    if (filterTurno === 'TODOS') {
-      matchesTurno = true;
-    } else if (filterTurno === 'INTEGRAL') {
-      matchesTurno = c.turnos && (c.turnos.includes('INTEGRAL') || c.turnos.length === 4);
-    } else {
-      matchesTurno = c.turnos && c.turnos.includes(filterTurno);
-    }
-    let matchesDuracao = true;
-    if (filterDuracao !== 'TODAS') {
-      const dur = c.duracao || 0;
-      if (filterDuracao === 'CURTA') matchesDuracao = dur <= 15;
-      else if (filterDuracao === 'MEDIA') matchesDuracao = dur > 15 && dur <= 30;
-      else if (filterDuracao === 'LONGA') matchesDuracao = dur > 30 && dur <= 60;
-      else if (filterDuracao === 'SUPER_LONGA') matchesDuracao = dur > 60;
-    }
-    
-    let matchesTipo = true;
-    if (filterTipo !== 'TODOS') {
-      if (filterTipo === 'HOSPITAL') {
-        matchesTipo = c.is_institucional === true;
-      } else if (filterTipo === 'EM_ANALISE') {
-        matchesTipo = c.status === 'EM_ANALISE';
-      } else if (filterTipo === 'APROVADA') {
-        matchesTipo = c.status === 'APROVADA' || c.status === 'ATIVA';
-      } else if (filterTipo === 'EXPIRADA') {
-        matchesTipo = c.status === 'EXPIRADA';
-      } else {
-        matchesTipo = c.status === filterTipo;
-      }
-    }
+  // Controle de Modo de Visualização e Paginação
+  const [viewMode, setViewMode] = useState('card'); // 'card' ou 'table'
+  const [cardPage, setCardPage] = useState(1);
+  const [tablePage, setTablePage] = useState(1);
+  const [tableRowsPerPage, setTableRowsPerPage] = useState(10);
 
-    return matchesSearch && matchesTurno && matchesDuracao && matchesTipo;
+  // Reseta a paginação ao mudar os filtros
+  useEffect(() => {
+    setCardPage(1);
+    setTablePage(1);
+  }, [searchTerm, filterTurno, filterDuracao, filterTipo]);
+
+  // Novos estados para controle por dia da semana e TV
+  const [selectedDay, setSelectedDay] = useState(getTodayPyWeekday());
+  const [selectedTv, setSelectedTv] = useState('sala_espera');
+  const [ocupacaoData, setOcupacaoData] = useState({
+    MANHA: { vendido: 0, institucional: 0 },
+    TARDE: { vendido: 0, institucional: 0 },
+    NOITE: { vendido: 0, institucional: 0 },
+    MADRUGADA: { vendido: 0, institucional: 0 }
   });
+  const [loadingOcupacao, setLoadingOcupacao] = useState(true);
+
+  const filteredCampanhas = useMemo(() => {
+    return campanhas.filter(c => {
+      const matchesSearch = c.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (c.parceiro_nome && c.parceiro_nome.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      let matchesTurno = false;
+      if (filterTurno === 'TODOS') {
+        matchesTurno = true;
+      } else if (filterTurno === 'INTEGRAL') {
+        matchesTurno = c.turnos && (c.turnos.includes('INTEGRAL') || c.turnos.length === 4);
+      } else {
+        matchesTurno = c.turnos && c.turnos.includes(filterTurno);
+      }
+      let matchesDuracao = true;
+      if (filterDuracao !== 'TODAS') {
+        const dur = c.duracao || 0;
+        if (filterDuracao === 'CURTA') matchesDuracao = dur <= 15;
+        else if (filterDuracao === 'MEDIA') matchesDuracao = dur > 15 && dur <= 30;
+        else if (filterDuracao === 'LONGA') matchesDuracao = dur > 30 && dur <= 60;
+        else if (filterDuracao === 'SUPER_LONGA') matchesDuracao = dur > 60;
+      }
+      
+      let matchesTipo = true;
+      if (filterTipo !== 'TODOS') {
+        if (filterTipo === 'HOSPITAL') {
+          matchesTipo = c.is_institucional === true;
+        } else if (filterTipo === 'EM_ANALISE') {
+          matchesTipo = c.status === 'EM_ANALISE';
+        } else if (filterTipo === 'APROVADA') {
+          matchesTipo = c.status === 'APROVADA' || c.status === 'ATIVA';
+        } else if (filterTipo === 'EXPIRADA') {
+          matchesTipo = c.status === 'EXPIRADA';
+        } else {
+          matchesTipo = c.status === filterTipo;
+        }
+      }
+
+      return matchesSearch && matchesTurno && matchesDuracao && matchesTipo;
+    });
+  }, [campanhas, searchTerm, filterTurno, filterDuracao, filterTipo]);
+
+  const fetchOcupacao = async (day, tv) => {
+    setLoadingOcupacao(true);
+    try {
+      const response = await api.get(`campanhas/ocupacao/?dia=${day}&tv=${tv}`);
+      setOcupacaoData(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar dados de ocupação", error);
+      showMessage("Não foi possível carregar a ocupação deste dia.", "error");
+    } finally {
+      setLoadingOcupacao(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchOcupacao(selectedDay, selectedTv);
+  }, [selectedDay, selectedTv]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -249,18 +365,14 @@ const AdminDashboard = () => {
         parceiros: new Set(campData.map(c => c.parceiro)).size,
         expiradas: campData.filter(c => c.status === 'EXPIRADA').length
       });
+
+      // Recarrega a ocupação atualizada
+      fetchOcupacao(selectedDay, selectedTv);
     } catch (error) {
       console.error("Erro ao buscar dados", error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const calculateOcupacao = (turnoNome) => {
-    const total = campanhas
-      .filter(c => (c.status === 'APROVADA' || c.status === 'ATIVA') && !c.is_institucional && (c.turnos && c.turnos.includes(turnoNome)))
-      .reduce((acc, curr) => acc + (curr.duracao || 0), 0);
-    return total;
   };
 
   const updateTimesByShift = (shift) => {
@@ -274,17 +386,28 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleOpenAprovacao = (campanha) => {
+  const handleOpenAprovacao = useCallback((campanha) => {
     setSelectedCampanha(campanha);
     setDuracao(campanha.duracao || 15);
     setTurnos(campanha.turnos && campanha.turnos.length > 0 ? campanha.turnos : ['MANHA', 'TARDE', 'NOITE', 'MADRUGADA']);
     setDiasSemana(campanha.dias_semana && campanha.dias_semana.length > 0 ? campanha.dias_semana : [0, 1, 2, 3, 4, 5, 6]);
     setModalOpen(true);
-  };
+  }, []);
 
   const handleAprovar = async (e) => {
     e.preventDefault();
     try {
+      // 0. Excluir agendamentos anteriores para evitar duplicação/acumulação
+      if (selectedCampanha.agendamentos && selectedCampanha.agendamentos.length > 0) {
+        for (const ag of selectedCampanha.agendamentos) {
+          try {
+            await api.delete(`agendamentos/${ag.id}/`);
+          } catch (delErr) {
+            console.error("Erro ao deletar agendamento antigo:", delErr);
+          }
+        }
+      }
+
       // 1. Salvar alteração de status, turnos, duração e dias da semana na Campanha
       await api.patch(`campanhas/${selectedCampanha.id}/`, {
         status: 'APROVADA',
@@ -321,10 +444,10 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleOpenDelete = (campanha) => {
+  const handleOpenDelete = useCallback((campanha) => {
     setCampanhaToDelete(campanha);
     setDeleteDialogOpen(true);
-  };
+  }, []);
 
   const handleConfirmDelete = async () => {
     if (!campanhaToDelete) return;
@@ -340,15 +463,671 @@ const AdminDashboard = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'APROVADA': return 'success';
-      case 'EM_ANALISE': return 'warning';
-      case 'PAUSADA': return 'error';
-      case 'EXPIRADA': return 'default';
-      default: return 'default';
+  const kpiCards = useMemo(() => (
+    <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid item xs={12} sm={6} md={2.4}>
+        <Card elevation={2} sx={{ 
+          borderRadius: 3,
+          borderLeft: '5px solid',
+          borderColor: 'primary.main'
+        }}>
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
+              <Typography variant="body2" color="textSecondary" fontWeight="bold">Total de Campanhas</Typography>
+              <CampaignIcon sx={{ color: 'primary.main' }} />
+            </Stack>
+            {loading ? (
+              <Skeleton variant="text" width={50} height={40} />
+            ) : (
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'primary.main' }}>{stats.total}</Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={2.4}>
+        <Card elevation={2} sx={{ 
+          borderRadius: 3,
+          borderLeft: '5px solid',
+          borderColor: 'success.main'
+        }}>
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
+              <Typography variant="body2" color="textSecondary" fontWeight="bold">Ativas na TV</Typography>
+              <CheckCircleIcon sx={{ color: 'success.main' }} />
+            </Stack>
+            {loading ? (
+              <Skeleton variant="text" width={50} height={40} />
+            ) : (
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'success.main' }}>{stats.ativas}</Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={2.4}>
+        <Card elevation={2} sx={{ 
+          borderRadius: 3,
+          borderLeft: '5px solid',
+          borderColor: 'warning.main'
+        }}>
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
+              <Typography variant="body2" color="textSecondary" fontWeight="bold">Pendentes</Typography>
+              <PendingActionsIcon sx={{ color: 'warning.main' }} />
+            </Stack>
+            {loading ? (
+              <Skeleton variant="text" width={50} height={40} />
+            ) : (
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'warning.main' }}>{stats.pendentes}</Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={2.4}>
+        <Card elevation={2} sx={{ 
+          borderRadius: 3,
+          borderLeft: '5px solid',
+          borderColor: 'secondary.main'
+        }}>
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
+              <Typography variant="body2" color="textSecondary" fontWeight="bold">Parceiros Ativos</Typography>
+              <PeopleIcon sx={{ color: 'secondary.main' }} />
+            </Stack>
+            {loading ? (
+              <Skeleton variant="text" width={50} height={40} />
+            ) : (
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'secondary.main' }}>{stats.parceiros}</Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+      <Grid item xs={12} sm={6} md={2.4}>
+        <Card elevation={2} sx={{ 
+          borderRadius: 3,
+          borderLeft: '5px solid',
+          borderColor: 'text.secondary'
+        }}>
+          <CardContent>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
+              <Typography variant="body2" color="textSecondary" fontWeight="bold">Expiradas</Typography>
+              <HistoryIcon sx={{ color: 'text.secondary' }} />
+            </Stack>
+            {loading ? (
+              <Skeleton variant="text" width={50} height={40} />
+            ) : (
+              <Typography variant="h4" fontWeight="bold" sx={{ color: 'text.secondary' }}>{stats.expiradas}</Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+    </Grid>
+  ), [loading, stats]);
+
+  const filterSection = useMemo(() => (
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Gerenciar Campanhas</Typography>
+      
+      {/* Filtros de Busca */}
+      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+        <TextField
+          label="Buscar por nome ou parceiro..."
+          size="small"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ width: { xs: '100%', sm: 260 }, bgcolor: 'background.paper' }}
+        />
+        <TextField
+          select
+          size="small"
+          label="Tipo"
+          value={filterTipo}
+          onChange={(e) => setFilterTipo(e.target.value)}
+          sx={{ width: { xs: '100%', sm: 130 }, bgcolor: 'background.paper' }}
+        >
+          <MenuItem value="TODOS">Todos</MenuItem>
+          <MenuItem value="APROVADA">Aprovado</MenuItem>
+          <MenuItem value="EM_ANALISE">Pendente</MenuItem>
+          <MenuItem value="EXPIRADA">Expirada</MenuItem>
+          <MenuItem value="HOSPITAL">Hospital</MenuItem>
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Turno"
+          value={filterTurno}
+          onChange={(e) => setFilterTurno(e.target.value)}
+          sx={{ width: { xs: '100%', sm: 130 }, bgcolor: 'background.paper' }}
+        >
+          <MenuItem value="TODOS">Todos</MenuItem>
+          <MenuItem value="INTEGRAL">Integral</MenuItem>
+          <MenuItem value="MANHA">Manhã</MenuItem>
+          <MenuItem value="TARDE">Tarde</MenuItem>
+          <MenuItem value="NOITE">Noite</MenuItem>
+          <MenuItem value="MADRUGADA">Madrugada</MenuItem>
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Duração"
+          value={filterDuracao}
+          onChange={(e) => setFilterDuracao(e.target.value)}
+          sx={{ width: { xs: '100%', sm: 110 }, bgcolor: 'background.paper' }}
+        >
+          <MenuItem value="TODAS">Todas</MenuItem>
+          <MenuItem value="CURTA">Até 15s</MenuItem>
+          <MenuItem value="MEDIA">16s a 30s</MenuItem>
+          <MenuItem value="LONGA">31s a 60s</MenuItem>
+          <MenuItem value="SUPER_LONGA">Acima de 60s</MenuItem>
+        </TextField>
+        
+        <Button 
+          variant="outlined" 
+          color="inherit"
+          onClick={() => {
+            setSearchTerm('');
+            setFilterTipo('TODOS');
+            setFilterTurno('TODOS');
+            setFilterDuracao('TODAS');
+          }}
+          disabled={!searchTerm && filterTipo === 'TODOS' && filterTurno === 'TODOS' && filterDuracao === 'TODAS'}
+          sx={{ borderRadius: 2, textTransform: 'none', height: 40 }}
+        >
+          Limpar Filtros
+        </Button>
+
+        {/* Alternador de Modo de Visualização */}
+        <Box sx={{ ml: { xs: 0, sm: 'auto' } }}>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(e, nextMode) => {
+              if (nextMode !== null) setViewMode(nextMode);
+            }}
+            size="small"
+            sx={{ bgcolor: 'background.paper', borderRadius: 2 }}
+          >
+            <ToggleButton value="card" aria-label="cards" title="Visualização em Cards" sx={{ px: 2 }}>
+              <GridViewIcon fontSize="small" sx={{ mr: 0.5 }} />
+              Cards
+            </ToggleButton>
+            <ToggleButton value="table" aria-label="tabela" title="Visualização em Tabela" sx={{ px: 2 }}>
+              <ViewListIcon fontSize="small" sx={{ mr: 0.5 }} />
+              Tabela
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+      </Box>
+    </Box>
+  ), [searchTerm, filterTipo, filterTurno, filterDuracao, viewMode]);
+
+  const campaignGrid = useMemo(() => {
+    if (loading) {
+      return (
+        <Grid container spacing={3}>
+          {[1, 2, 3, 4].map((item, idx) => (
+            <Grid item xs={12} sm={6} md={4} key={idx}>
+              <Card sx={{ borderRadius: 3, p: 1 }}>
+                <CardContent>
+                  <Skeleton variant="text" width="40%" height={24} />
+                  <Skeleton variant="text" width="80%" height={32} sx={{ mt: 1 }} />
+                  <Skeleton variant="rectangular" width="100%" height={100} sx={{ mt: 2, borderRadius: 2 }} />
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      );
     }
-  };
+
+    if (filteredCampanhas.length === 0) {
+      return (
+        <Card sx={{ borderRadius: 3, p: 6, textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+          <Typography variant="h6" color="text.secondary">
+            Nenhuma campanha corresponde aos filtros selecionados.
+          </Typography>
+        </Card>
+      );
+    }
+
+    if (viewMode === 'card') {
+      const totalCardPages = Math.ceil(filteredCampanhas.length / 8);
+      const paginatedCards = filteredCampanhas.slice((cardPage - 1) * 8, cardPage * 8);
+
+      return (
+        <Box>
+          <Grid container spacing={3}>
+            {paginatedCards.map((c) => {
+              const hasVideo = c.midias && c.midias.length > 0 && c.midias[0].tipo === 'VIDEO';
+              const mediaUrl = c.midias && c.midias.length > 0 ? c.midias[0].arquivo_url : null;
+              return (
+                <Grid item xs={12} md={6} key={c.id} sx={{ display: 'flex' }}>
+                  <Card 
+                    onClick={() => navigate(`/admin/editar/${c.id}`)}
+                    sx={{ 
+                      borderRadius: 4,
+                      width: '100%',
+                      height: '100%',
+                      minHeight: 370,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        transform: 'translateY(-6px)',
+                        boxShadow: '0 12px 24px rgba(0, 0, 0, 0.08)',
+                        borderColor: 'primary.main',
+                        '& .edit-badge': {
+                          opacity: 1,
+                          transform: 'scale(1)'
+                        }
+                      }
+                    }}
+                  >
+                    {/* Hover Edit Overlay/Badge */}
+                    <Box 
+                      className="edit-badge"
+                      sx={{
+                        position: 'absolute',
+                        top: 12,
+                        right: 12,
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        borderRadius: '50%',
+                        p: 0.8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: 0,
+                        transform: 'scale(0.8)',
+                        transition: 'all 0.2s ease-in-out',
+                        zIndex: 2,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                      }}
+                    >
+                      <EditIcon sx={{ fontSize: 16 }} />
+                    </Box>
+
+                    <CardContent sx={{ p: 3, pb: 1 }}>
+                      {/* Header: Turn and Status */}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, mb: 2 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Box sx={{ display: 'flex', gap: 0.5 }}>
+                            <Chip 
+                              label={c.status === 'EM_ANALISE' ? 'PENDENTE' : c.status.replace('_', ' ')} 
+                              color={getStatusColor(c.status)} 
+                              size="small"
+                              sx={{ fontWeight: 'bold', fontSize: '0.7rem', px: 1 }}
+                            />
+                            {c.is_institucional && (
+                              <Tooltip title="Vídeo Institucional / Hospital" arrow>
+                                <LocalHospitalIcon color="primary" sx={{ fontSize: '1.2rem', ml: 0.5 }} />
+                              </Tooltip>
+                            )}
+                          </Box>
+                        </Box>
+                        {c.turnos && c.turnos.length > 0 && (
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                            <Tooltip title={`Turnos: ${formatTurnosFull(c.turnos)}`} arrow>
+                              <Box>
+                                {renderTurnosChips(c.turnos, true)}
+                              </Box>
+                            </Tooltip>
+                          </Box>
+                        )}
+                      </Box>
+
+                      {/* Title */}
+                      <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ lineHeight: 1.3 }}>
+                        {c.nome}
+                      </Typography>
+
+                      {/* Partner Name */}
+                      <Typography variant="body2" color="primary.main" fontWeight={600} sx={{ mb: 1 }}>
+                        {c.parceiro_nome || 'Parceiro desconhecido'}
+                      </Typography>
+
+                      {/* Category */}
+                      {c.categoria && (
+                        <Typography variant="caption" color="textSecondary" sx={{ bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1, display: 'inline-block', mb: 2 }}>
+                          {c.categoria}
+                        </Typography>
+                      )}
+
+                      {/* Details: Dates, Duration, Media Type */}
+                      <Stack spacing={1.5} sx={{ mt: c.categoria ? 0 : 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                          <CalendarTodayIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                            {new Date(c.data_inicio).toLocaleDateString()} - {new Date(c.data_fim).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                          <AccessTimeIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                            Duração: <strong>{c.duracao} segundos</strong>
+                          </Typography>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                          {hasVideo ? <PlayArrowIcon sx={{ fontSize: 16, color: 'primary.main' }} /> : <ImageIcon sx={{ fontSize: 16, color: 'primary.main' }} />}
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            Mídia: {hasVideo ? 'Vídeo' : 'Imagem'}
+                            {mediaUrl && (
+                              <IconButton 
+                                size="small" 
+                                href={mediaUrl} 
+                                target="_blank" 
+                                onClick={(e) => e.stopPropagation()} 
+                                sx={{ p: 0, ml: 0.5, color: 'primary.main' }}
+                              >
+                                <OpenInNewIcon sx={{ fontSize: 14 }} />
+                              </IconButton>
+                            )}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </CardContent>
+
+                    <CardActions sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid', borderColor: 'divider' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        {c.status === 'EM_ANALISE' ? (
+                          <Button 
+                            variant="contained" 
+                            color="primary" 
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenAprovacao(c);
+                            }}
+                            startIcon={<CheckCircleIcon />}
+                            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 'bold' }}
+                          >
+                            Aprovar
+                          </Button>
+                        ) : (
+                          <Typography variant="caption" color="textSecondary">
+                            Exibições: <strong>{c.total_exibicoes || 0}</strong>
+                          </Typography>
+                        )}
+                      </Box>
+                      
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <IconButton 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDelete(c);
+                          }} 
+                          sx={{ color: 'error.main', '&:hover': { bgcolor: 'error.light', color: 'error.main' } }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </CardActions>
+                  </Card>
+                </Grid>
+              );
+            })}
+          </Grid>
+          
+          {totalCardPages > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <Pagination 
+                count={totalCardPages} 
+                page={cardPage} 
+                onChange={(e, page) => setCardPage(page)} 
+                color="primary" 
+                size="large"
+                sx={{
+                  '& .MuiPaginationItem-root': { borderRadius: 2 }
+                }}
+              />
+            </Box>
+          )}
+        </Box>
+      );
+    }
+
+    // viewMode === 'table'
+    const totalTablePages = Math.ceil(filteredCampanhas.length / tableRowsPerPage);
+    const paginatedTable = filteredCampanhas.slice((tablePage - 1) * tableRowsPerPage, tablePage * tableRowsPerPage);
+
+    return (
+      <Box>
+        <TableContainer 
+          component={Paper} 
+          elevation={1} 
+          sx={{ 
+            borderRadius: 4, 
+            overflow: 'hidden', 
+            border: '1px solid', 
+            borderColor: 'divider',
+            bgcolor: 'background.paper'
+          }}
+        >
+          <Table sx={{ minWidth: 800 }} aria-label="tabela de campanhas">
+            <TableHead sx={{ bgcolor: 'action.hover' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>Campanha</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Turnos</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>TVs</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Período</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="center">Duração</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Mídia</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }} align="right">Ações</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {paginatedTable.map((c) => {
+                const hasVideo = c.midias && c.midias.length > 0 && c.midias[0].tipo === 'VIDEO';
+                const mediaUrl = c.midias && c.midias.length > 0 ? c.midias[0].arquivo_url : null;
+                return (
+                  <TableRow 
+                    key={c.id} 
+                    hover
+                    onClick={() => navigate(`/admin/editar/${c.id}`)}
+                    sx={{ 
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: 'action.selected'
+                      },
+                      transition: 'background-color 0.2s ease'
+                    }}
+                  >
+                    {/* Campanha */}
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body1" fontWeight="bold">
+                          {c.nome}
+                        </Typography>
+                        <Typography variant="body2" color="primary.main" fontWeight={600}>
+                          {c.parceiro_nome || 'Parceiro desconhecido'}
+                        </Typography>
+                        {c.categoria && (
+                          <Typography 
+                            variant="caption" 
+                            color="textSecondary" 
+                            sx={{ 
+                              bgcolor: 'action.hover', 
+                              px: 0.8, 
+                              py: 0.2, 
+                              borderRadius: 1, 
+                              display: 'inline-block', 
+                              mt: 0.5 
+                            }}
+                          >
+                            {c.categoria}
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+
+                    {/* Status */}
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        <Chip 
+                          label={c.status === 'EM_ANALISE' ? 'PENDENTE' : c.status.replace('_', ' ')} 
+                          color={getStatusColor(c.status)} 
+                          size="small"
+                          sx={{ fontWeight: 'bold', fontSize: '0.7rem', px: 1 }}
+                        />
+                        {c.is_institucional && (
+                          <Tooltip title="Vídeo Institucional / Hospital" arrow>
+                            <LocalHospitalIcon color="primary" sx={{ fontSize: '1.1rem' }} />
+                          </Tooltip>
+                        )}
+                      </Box>
+                    </TableCell>
+
+                    {/* Turnos */}
+                    <TableCell>
+                      {c.turnos && c.turnos.length > 0 ? (
+                        renderTurnosChips(c.turnos, true)
+                      ) : (
+                        <Typography variant="body2" color="textSecondary">-</Typography>
+                      )}
+                    </TableCell>
+
+                    {/* TVs */}
+                    <TableCell>
+                      {renderTvsChips(c.tvs)}
+                    </TableCell>
+
+                    {/* Período */}
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        {new Date(c.data_inicio).toLocaleDateString()}
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+                        até {new Date(c.data_fim).toLocaleDateString()}
+                      </Typography>
+                    </TableCell>
+
+                    {/* Duração */}
+                    <TableCell align="center">
+                      <Typography variant="body2" fontWeight="bold">
+                        {c.duracao}s
+                      </Typography>
+                    </TableCell>
+
+                    {/* Mídia */}
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }} onClick={(e) => e.stopPropagation()}>
+                        {hasVideo ? <PlayArrowIcon sx={{ fontSize: 16, color: 'primary.main' }} /> : <ImageIcon sx={{ fontSize: 16, color: 'primary.main' }} />}
+                        <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                          {hasVideo ? 'Vídeo' : 'Imagem'}
+                        </Typography>
+                        {mediaUrl && (
+                          <IconButton 
+                            size="small" 
+                            href={mediaUrl} 
+                            target="_blank" 
+                            sx={{ p: 0.5, color: 'primary.main' }}
+                          >
+                            <OpenInNewIcon sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        )}
+                      </Box>
+                    </TableCell>
+
+                    {/* Ações */}
+                    <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1 }}>
+                        {c.status === 'EM_ANALISE' && (
+                          <Button 
+                            variant="contained" 
+                            color="primary" 
+                            size="small"
+                            onClick={() => handleOpenAprovacao(c)}
+                            startIcon={<CheckCircleIcon />}
+                            sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 'bold' }}
+                          >
+                            Aprovar
+                          </Button>
+                        )}
+                        <IconButton 
+                          onClick={() => handleOpenDelete(c)} 
+                          sx={{ color: 'error.main', '&:hover': { bgcolor: 'error.light' } }}
+                          title="Excluir"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {/* Footer controls for Table Mode */}
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            mt: 3, 
+            flexWrap: 'wrap', 
+            gap: 2,
+            px: 1
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="textSecondary">
+              Itens por página:
+            </Typography>
+            <TextField
+              select
+              size="small"
+              value={tableRowsPerPage}
+              onChange={(e) => {
+                setTableRowsPerPage(Number(e.target.value));
+                setTablePage(1);
+              }}
+              sx={{ 
+                width: 80, 
+                bgcolor: 'background.paper',
+                '& .MuiOutlinedInput-root': { borderRadius: 2 }
+              }}
+            >
+              <MenuItem value={10}>10</MenuItem>
+              <MenuItem value={20}>20</MenuItem>
+              <MenuItem value={30}>30</MenuItem>
+              <MenuItem value={50}>50</MenuItem>
+            </TextField>
+          </Box>
+          
+          {totalTablePages > 1 && (
+            <Pagination 
+              count={totalTablePages} 
+              page={tablePage} 
+              onChange={(e, page) => setTablePage(page)} 
+              color="primary" 
+              sx={{
+                '& .MuiPaginationItem-root': { borderRadius: 2 }
+              }}
+            />
+          )}
+        </Box>
+      </Box>
+    );
+  }, [
+    filteredCampanhas, 
+    loading, 
+    navigate, 
+    handleOpenAprovacao, 
+    handleOpenDelete, 
+    viewMode, 
+    cardPage, 
+    tablePage, 
+    tableRowsPerPage
+  ]);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -358,117 +1137,85 @@ const AdminDashboard = () => {
         <Typography variant="body2" color="textSecondary">Controle central de anúncios e campanhas</Typography>
       </Box>
 
-      {/* KPI Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card elevation={2} sx={{ 
-            borderRadius: 3,
-            borderLeft: '5px solid',
-            borderColor: 'primary.main',
-            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
-          }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="textSecondary" fontWeight="bold">Total de Campanhas</Typography>
-                <CampaignIcon sx={{ color: 'primary.main' }} />
-              </Stack>
-              {loading ? (
-                <Skeleton variant="text" width={50} height={40} />
-              ) : (
-                <Typography variant="h4" fontWeight="bold" sx={{ color: 'primary.main' }}>{stats.total}</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card elevation={2} sx={{ 
-            borderRadius: 3,
-            borderLeft: '5px solid',
-            borderColor: 'success.main',
-            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
-          }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="textSecondary" fontWeight="bold">Ativas na TV</Typography>
-                <CheckCircleIcon sx={{ color: 'success.main' }} />
-              </Stack>
-              {loading ? (
-                <Skeleton variant="text" width={50} height={40} />
-              ) : (
-                <Typography variant="h4" fontWeight="bold" sx={{ color: 'success.main' }}>{stats.ativas}</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card elevation={2} sx={{ 
-            borderRadius: 3,
-            borderLeft: '5px solid',
-            borderColor: 'warning.main',
-            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
-          }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="textSecondary" fontWeight="bold">Pendentes</Typography>
-                <PendingActionsIcon sx={{ color: 'warning.main' }} />
-              </Stack>
-              {loading ? (
-                <Skeleton variant="text" width={50} height={40} />
-              ) : (
-                <Typography variant="h4" fontWeight="bold" sx={{ color: 'warning.main' }}>{stats.pendentes}</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card elevation={2} sx={{ 
-            borderRadius: 3,
-            borderLeft: '5px solid',
-            borderColor: 'secondary.main',
-            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
-          }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="textSecondary" fontWeight="bold">Parceiros Ativos</Typography>
-                <PeopleIcon sx={{ color: 'secondary.main' }} />
-              </Stack>
-              {loading ? (
-                <Skeleton variant="text" width={50} height={40} />
-              ) : (
-                <Typography variant="h4" fontWeight="bold" sx={{ color: 'secondary.main' }}>{stats.parceiros}</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <Card elevation={2} sx={{ 
-            borderRadius: 3,
-            borderLeft: '5px solid',
-            borderColor: 'text.secondary',
-            transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-            '&:hover': { transform: 'translateY(-5px)', boxShadow: 10, cursor: 'pointer' }
-          }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="textSecondary" fontWeight="bold">Expiradas</Typography>
-                <HistoryIcon sx={{ color: 'text.secondary' }} />
-              </Stack>
-              {loading ? (
-                <Skeleton variant="text" width={50} height={40} />
-              ) : (
-                <Typography variant="h4" fontWeight="bold" sx={{ color: 'text.secondary' }}>{stats.expiradas}</Typography>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      {kpiCards}
 
       {/* Ocupação do Inventário */}
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>Ocupação do Carrossel</Typography>
+      <Box sx={{ mb: 2.5, width: '100%' }}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1.5 }}>Ocupação por turno</Typography>
+        
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' }, 
+          alignItems: { xs: 'stretch', sm: 'center' }, 
+          gap: 2,
+          flexWrap: 'wrap'
+        }}>
+          {/* Barra de Seleção de Dia da Semana */}
+          <Box sx={{ 
+            display: 'flex', 
+            bgcolor: 'background.paper', 
+            p: 0.5, 
+            borderRadius: 3, 
+            border: '1px solid', 
+            borderColor: 'divider',
+            overflowX: 'auto',
+            '&::-webkit-scrollbar': { display: 'none' },
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
+          }}>
+            {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map((dia, idx) => {
+              const isSelected = selectedDay === idx;
+              return (
+                <Button
+                  key={idx}
+                  size="small"
+                  onClick={() => setSelectedDay(idx)}
+                  sx={{
+                    borderRadius: 2,
+                    px: 2.5,
+                    py: 0.75,
+                    fontSize: '0.8rem',
+                    fontWeight: 'bold',
+                    bgcolor: isSelected ? 'primary.main' : 'transparent',
+                    color: isSelected ? 'primary.contrastText' : 'text.secondary',
+                    whiteSpace: 'nowrap',
+                    '&:hover': {
+                      bgcolor: isSelected ? 'primary.main' : 'action.hover',
+                      color: isSelected ? 'primary.contrastText' : 'primary.main',
+                    },
+                    transition: 'all 0.2s ease-in-out',
+                  }}
+                >
+                  {dia}
+                </Button>
+              );
+            })}
+          </Box>
+
+          {/* Seletor de TV */}
+          <TextField
+            select
+            size="small"
+            label="Filtrar por TV"
+            value={selectedTv}
+            onChange={(e) => setSelectedTv(e.target.value)}
+            sx={{ 
+              width: { xs: '100%', sm: 240 }, 
+              bgcolor: 'background.paper',
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 3
+              }
+            }}
+          >
+            {TVS_OPCOES.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+        </Box>
+      </Box>
+
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
           { label: 'Manhã', key: 'MANHA', bg: 'linear-gradient(135deg, #FFF8E1, #FFECB3)', border: '#FFE082', textColor: '#FF8F00', barColor: '#FFB300' },
@@ -476,32 +1223,36 @@ const AdminDashboard = () => {
           { label: 'Noite', key: 'NOITE', bg: 'linear-gradient(135deg, #EDE7F6, #D1C4E9)', border: '#B39DDB', textColor: '#6A1B9A', barColor: '#8E24AA' },
           { label: 'Madrugada', key: 'MADRUGADA', bg: 'linear-gradient(135deg, #ECEFF1, #CFD8DC)', border: '#B0BEC5', textColor: '#37474F', barColor: '#78909C' }
         ].map((t) => {
-          const used = calculateOcupacao(t.key);
-          const percent = Math.min((used / 300) * 100, 100);
+          const shiftData = ocupacaoData[t.key] || { vendido: 0, institucional: 0 };
+          const vendido = shiftData.vendido;
+          const institucional = shiftData.institucional;
+          const percent = Math.min((vendido / 300) * 100, 100);
+          
           return (
             <Grid item xs={12} sm={6} md={3} key={t.key}>
               <Paper 
-                onClick={() => navigate(`/admin/preview?turno=${t.key}`)}
+                onClick={() => navigate(`/admin/preview?turno=${t.key}&dia=${selectedDay}&tv=${selectedTv}`)}
                 sx={{ 
                   p: 2.5, 
                   borderRadius: 4,
                   background: t.bg,
                   border: `1px solid ${t.border}`,
                   cursor: 'pointer',
-                  transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 8px 25px rgba(0,0,0,0.1)'
-                  }
+                  opacity: loadingOcupacao ? 0.75 : 1
                 }}
               >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                  <Typography variant="subtitle1" fontWeight="bold" sx={{ color: t.textColor }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" sx={{ color: t.textColor, lineHeight: 1.2 }}>
                     {t.label}
                   </Typography>
-                  <Typography variant="caption" fontWeight="bold" sx={{ color: used > 300 ? 'error.main' : t.textColor }}>
-                    {used}/300s
-                  </Typography>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="caption" fontWeight="bold" sx={{ display: 'block', color: vendido > 300 ? 'error.main' : t.textColor, lineHeight: 1.2 }}>
+                      {vendido}/300s
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: 'block', color: t.textColor, opacity: 0.85, fontSize: '0.72rem', mt: 0.2 }}>
+                      Inst.: {institucional}s
+                    </Typography>
+                  </Box>
                 </Box>
                 <LinearProgress 
                   variant="determinate" 
@@ -519,279 +1270,8 @@ const AdminDashboard = () => {
         })}
       </Grid>
 
-      {/* Gerenciar Campanhas */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Gerenciar Campanhas</Typography>
-        
-        {/* Filtros de Busca */}
-        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField
-            label="Buscar por nome ou parceiro..."
-            size="small"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{ width: { xs: '100%', sm: 260 }, bgcolor: 'background.paper' }}
-          />
-          <TextField
-            select
-            size="small"
-            label="Tipo"
-            value={filterTipo}
-            onChange={(e) => setFilterTipo(e.target.value)}
-            sx={{ width: { xs: '100%', sm: 130 }, bgcolor: 'background.paper' }}
-          >
-            <MenuItem value="TODOS">Todos</MenuItem>
-            <MenuItem value="APROVADA">Aprovado</MenuItem>
-            <MenuItem value="EM_ANALISE">Pendente</MenuItem>
-            <MenuItem value="EXPIRADA">Expirada</MenuItem>
-            <MenuItem value="HOSPITAL">Hospital</MenuItem>
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label="Turno"
-            value={filterTurno}
-            onChange={(e) => setFilterTurno(e.target.value)}
-            sx={{ width: { xs: '100%', sm: 130 }, bgcolor: 'background.paper' }}
-          >
-            <MenuItem value="TODOS">Todos</MenuItem>
-            <MenuItem value="INTEGRAL">Integral</MenuItem>
-            <MenuItem value="MANHA">Manhã</MenuItem>
-            <MenuItem value="TARDE">Tarde</MenuItem>
-            <MenuItem value="NOITE">Noite</MenuItem>
-            <MenuItem value="MADRUGADA">Madrugada</MenuItem>
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label="Duração"
-            value={filterDuracao}
-            onChange={(e) => setFilterDuracao(e.target.value)}
-            sx={{ width: { xs: '100%', sm: 110 }, bgcolor: 'background.paper' }}
-          >
-            <MenuItem value="TODAS">Todas</MenuItem>
-            <MenuItem value="CURTA">Até 15s</MenuItem>
-            <MenuItem value="MEDIA">16s a 30s</MenuItem>
-            <MenuItem value="LONGA">31s a 60s</MenuItem>
-            <MenuItem value="SUPER_LONGA">Acima de 60s</MenuItem>
-          </TextField>
-          
-          <Button 
-            variant="outlined" 
-            color="inherit"
-            onClick={() => {
-              setSearchTerm('');
-              setFilterTipo('TODOS');
-              setFilterTurno('TODOS');
-              setFilterDuracao('TODAS');
-            }}
-            disabled={!searchTerm && filterTipo === 'TODOS' && filterTurno === 'TODOS' && filterDuracao === 'TODAS'}
-            sx={{ borderRadius: 2, textTransform: 'none', height: 40 }}
-          >
-            Limpar Filtros
-          </Button>
-        </Box>
-      </Box>
-      
-      {loading ? (
-        <Grid container spacing={3}>
-          {[1, 2, 3, 4].map((item, idx) => (
-            <Grid item xs={12} sm={6} md={4} key={idx}>
-              <Card sx={{ borderRadius: 3, p: 1 }}>
-                <CardContent>
-                  <Skeleton variant="text" width="40%" height={24} />
-                  <Skeleton variant="text" width="80%" height={32} sx={{ mt: 1 }} />
-                  <Skeleton variant="rectangular" width="100%" height={100} sx={{ mt: 2, borderRadius: 2 }} />
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      ) : filteredCampanhas.length === 0 ? (
-        <Card sx={{ borderRadius: 3, p: 6, textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-          <Typography variant="h6" color="text.secondary">
-            Nenhuma campanha corresponde aos filtros selecionados.
-          </Typography>
-        </Card>
-      ) : (
-        <Grid container spacing={3}>
-          {filteredCampanhas.map((c) => {
-            const hasVideo = c.midias && c.midias.length > 0 && c.midias[0].tipo === 'VIDEO';
-            const mediaUrl = c.midias && c.midias.length > 0 ? c.midias[0].arquivo_url : null;
-            return (
-              <Grid item xs={12} md={6} key={c.id} sx={{ display: 'flex' }}>
-                <Card 
-                  onClick={() => navigate(`/admin/editar/${c.id}`)}
-                  sx={{ 
-                    borderRadius: 4,
-                    height: '100%',
-                    minHeight: 370,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    position: 'relative',
-                    cursor: 'pointer',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    '&:hover': {
-                      transform: 'translateY(-6px)',
-                      boxShadow: '0 12px 24px rgba(0, 0, 0, 0.08)',
-                      borderColor: 'primary.main',
-                      '& .edit-badge': {
-                        opacity: 1,
-                        transform: 'scale(1)'
-                      }
-                    }
-                  }}
-                >
-                  {/* Hover Edit Overlay/Badge */}
-                  <Box 
-                    className="edit-badge"
-                    sx={{
-                      position: 'absolute',
-                      top: 12,
-                      right: 12,
-                      bgcolor: 'primary.main',
-                      color: 'white',
-                      borderRadius: '50%',
-                      p: 0.8,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: 0,
-                      transform: 'scale(0.8)',
-                      transition: 'all 0.2s ease-in-out',
-                      zIndex: 2,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-                    }}
-                  >
-                    <EditIcon sx={{ fontSize: 16 }} />
-                  </Box>
-
-                  <CardContent sx={{ p: 3, pb: 1 }}>
-                    {/* Header: Turn and Status */}
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, mb: 2 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          <Chip 
-                            label={c.status === 'EM_ANALISE' ? 'PENDENTE' : c.status.replace('_', ' ')} 
-                            color={getStatusColor(c.status)} 
-                            size="small"
-                            sx={{ fontWeight: 'bold', fontSize: '0.7rem', px: 1 }}
-                          />
-                          {c.is_institucional && (
-                            <Tooltip title="Vídeo Institucional / Hospital" arrow>
-                              <LocalHospitalIcon color="primary" sx={{ fontSize: '1.2rem', ml: 0.5 }} />
-                            </Tooltip>
-                          )}
-                        </Box>
-                      </Box>
-                      {c.turnos && c.turnos.length > 0 && (
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-                          <Tooltip title={`Turnos: ${formatTurnosFull(c.turnos)}`} arrow>
-                            <Box>
-                              {renderTurnosChips(c.turnos, true)}
-                            </Box>
-                          </Tooltip>
-                        </Box>
-                      )}
-                    </Box>
-
-                    {/* Title */}
-                    <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ lineHeight: 1.3 }}>
-                      {c.nome}
-                    </Typography>
-
-                    {/* Partner Name */}
-                    <Typography variant="body2" color="primary.main" fontWeight={600} sx={{ mb: 1 }}>
-                      {c.parceiro_nome || 'Parceiro desconhecido'}
-                    </Typography>
-
-                    {/* Category */}
-                    {c.categoria && (
-                      <Typography variant="caption" color="textSecondary" sx={{ bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1, display: 'inline-block', mb: 2 }}>
-                        {c.categoria}
-                      </Typography>
-                    )}
-
-                    {/* Details: Dates, Duration, Media Type */}
-                    <Stack spacing={1.5} sx={{ mt: c.categoria ? 0 : 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                        <CalendarTodayIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                        <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
-                          {new Date(c.data_inicio).toLocaleDateString()} - {new Date(c.data_fim).toLocaleDateString()}
-                        </Typography>
-                      </Box>
-
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                        <AccessTimeIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                        <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
-                          Duração: <strong>{c.duracao} segundos</strong>
-                        </Typography>
-                      </Box>
-
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                        {hasVideo ? <PlayArrowIcon sx={{ fontSize: 16, color: 'primary.main' }} /> : <ImageIcon sx={{ fontSize: 16, color: 'primary.main' }} />}
-                        <Typography variant="body2" sx={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                          Mídia: {hasVideo ? 'Vídeo' : 'Imagem'}
-                          {mediaUrl && (
-                            <IconButton 
-                              size="small" 
-                              href={mediaUrl} 
-                              target="_blank" 
-                              onClick={(e) => e.stopPropagation()} 
-                              sx={{ p: 0, ml: 0.5, color: 'primary.main' }}
-                            >
-                              <OpenInNewIcon sx={{ fontSize: 14 }} />
-                            </IconButton>
-                          )}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-
-                  <CardActions sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid', borderColor: 'divider' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      {c.status === 'EM_ANALISE' ? (
-                        <Button 
-                          variant="contained" 
-                          color="primary" 
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenAprovacao(c);
-                          }}
-                          startIcon={<CheckCircleIcon />}
-                          sx={{ textTransform: 'none', borderRadius: 2, fontWeight: 'bold' }}
-                        >
-                          Aprovar
-                        </Button>
-                      ) : (
-                        <Typography variant="caption" color="textSecondary">
-                          Exibições: <strong>{c.total_exibicoes || 0}</strong>
-                        </Typography>
-                      )}
-                    </Box>
-                    
-                    <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <IconButton 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDelete(c);
-                        }} 
-                        sx={{ color: 'error.main', '&:hover': { bgcolor: 'error.light', color: 'error.main' } }}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </CardActions>
-                </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
-      )}
+      {filterSection}
+      {campaignGrid}
 
       {/* Approval Dialog */}
       <Dialog 

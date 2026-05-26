@@ -6,11 +6,15 @@ import {
   Box, 
   Accordion, 
   AccordionSummary, 
-  AccordionDetails 
+  AccordionDetails,
+  IconButton
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useNavigate } from 'react-router-dom';
 
 const Faq = () => {
+  const navigate = useNavigate();
   const faqData = [
     {
       question: 'Quais formatos de vídeo e imagem são aceitos?',
@@ -36,6 +40,11 @@ const Faq = () => {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <Box sx={{ mb: 2 }}>
+        <IconButton onClick={() => navigate(-1)} color="primary">
+          <ArrowBackIcon />
+        </IconButton>
+      </Box>
       <Paper 
         elevation={2} 
         sx={{ 

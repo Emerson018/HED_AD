@@ -27,6 +27,7 @@ const PlayerView = () => {
   const [loading, setLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [cachingProgress, setCachingProgress] = useState(0);
+  const [videoProgress, setVideoProgress] = useState(0);
 
   // Efeito para simular o progresso do loading de 1.5s
   useEffect(() => {
@@ -78,7 +79,10 @@ const PlayerView = () => {
   const fetchPlaylist = async (silent = false) => {
     try {
       const forcedTurno = searchParams.get('turno');
-      const playlistUrl = forcedTurno ? `tv/playlist/?turno=${forcedTurno}` : 'tv/playlist/';
+      let playlistUrl = `tv/playlist/?tv=${token}`;
+      if (forcedTurno) {
+        playlistUrl += `&turno=${forcedTurno}`;
+      }
       const res = await api.get(playlistUrl);
       const newCampanhas = res.data;
       
@@ -152,6 +156,7 @@ const PlayerView = () => {
     }
 
     setCycleCount((prev) => prev + 1);
+    setVideoProgress(0); // Reseta progresso ao trocar de vídeo
     setCurrentIndex((prevIndex) => (prevIndex + 1) % currentPlaylist.length);
   };
 
@@ -279,6 +284,11 @@ const PlayerView = () => {
             muted
             playsInline
             onEnded={isActive ? handleNext : undefined}
+            onTimeUpdate={isActive ? (currentTime, duration) => {
+              if (duration > 0) {
+                setVideoProgress((currentTime / duration) * 100);
+              }
+            } : undefined}
             disableBackground={false}
             style={{ width: '100%', height: '100%' }}
           />
@@ -328,9 +338,25 @@ const PlayerView = () => {
           alignItems: 'center',
           borderLeft: '3px solid #068dbd',
           p: 1.5,
-          boxSizing: 'border-box'
+          boxSizing: 'border-box',
+          position: 'relative',
+          overflow: 'hidden',
         }}>
           
+          {/* Barra de progresso vertical do vídeo atual */}
+          <Box sx={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: '3px',
+            height: `${videoProgress}%`,
+            bgcolor: '#068dbd',
+            opacity: 0.7,
+            transition: 'height 0.3s linear',
+            borderRadius: '0 0 2px 2px',
+            zIndex: 2,
+          }} />
+
           {/* Logo HED */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', pt: 1, width: '100%' }}>
             <Box 

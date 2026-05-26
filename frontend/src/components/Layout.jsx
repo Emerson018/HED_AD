@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import useIdleTimeout from '../utils/useIdleTimeout';
+import { idleLogout } from '../utils/secureLogout';
 import { 
   Box, 
   Drawer, 
@@ -13,7 +15,13 @@ import {
   useTheme as useMuiTheme,
   Avatar,
   Tooltip,
-  alpha
+  alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -30,6 +38,9 @@ import HistoryIcon from '@mui/icons-material/History';
 import HelpIcon from '@mui/icons-material/Help';
 import GavelIcon from '@mui/icons-material/Gavel';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
+import SettingsIcon from '@mui/icons-material/Settings';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
 const drawerWidth = 270;
 const collapsedWidth = 72;
@@ -45,6 +56,7 @@ const textFadeSx = (isOpen) => ({
 
 const Layout = ({ children, toggleTheme, mode }) => {
   const [open, setOpen] = useState(true);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const userRole = localStorage.getItem('user_role');
@@ -55,34 +67,51 @@ const Layout = ({ children, toggleTheme, mode }) => {
     setOpen(!open);
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    localStorage.setItem('logout_success', 'true');
-    navigate('/login');
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true);
   };
+
+  const handleLogoutCancel = () => {
+    setLogoutDialogOpen(false);
+  };
+
+  const handleLogoutConfirm = () => {
+    setLogoutDialogOpen(false);
+    // Logout seguro: limpa tudo e impede navegação "Voltar"
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.replace('/login');
+  };
+
+  // Auto-logout por inatividade (15 minutos)
+  useIdleTimeout(idleLogout, 15 * 60 * 1000);
 
   const mainMenuItems = userRole === 'ADMIN_HED' 
     ? [
         { text: 'Dashboard Admin', icon: <AdminPanelSettingsIcon />, path: '/admin' },
+        { text: 'Campanha Institucional', icon: <LocalHospitalIcon />, path: '/admin/institucional' },
+        { text: 'Novo Usuário', icon: <PersonAddIcon />, path: '/admin/novo-usuario' },
         { text: 'Simulador de TV', icon: <TvIcon />, path: '/admin/preview' },
         { text: 'Logs do Sistema', icon: <HistoryIcon />, path: '/admin/logs' },
       ]
     : [
-        { text: 'Início', icon: <DashboardIcon />, path: '/parceiro' },
         { text: 'Minhas Campanhas', icon: <CampaignIcon />, path: '/parceiro/campanhas' },
         { text: 'Nova Campanha', icon: <AddCircleIcon />, path: '/parceiro/upload' },
       ];
 
-  const supportMenuItems = [
-    { text: 'Dúvidas (FAQ)', icon: <HelpIcon />, path: '/faq' },
-    { text: 'Termos de Uso', icon: <GavelIcon />, path: '/termos' },
-  ];
+  const supportMenuItems = userRole === 'ADMIN_HED'
+    ? [
+        { text: 'Opções', icon: <SettingsIcon />, path: '/admin/opcoes' },
+      ]
+    : [
+        { text: 'Dúvidas (FAQ)', icon: <HelpIcon />, path: '/faq' },
+        { text: 'Termos de Uso', icon: <GavelIcon />, path: '/termos' },
+      ];
 
   // Não mostrar sidebar na tela de login, registro ou player de TV
   const isBypassLayout = 
     location.pathname === '/login' || 
     location.pathname === '/' || 
-    location.pathname === '/register' || 
     location.pathname.startsWith('/tv/player');
 
   if (isBypassLayout) return <>{children}</>;
@@ -173,6 +202,22 @@ const Layout = ({ children, toggleTheme, mode }) => {
             borderRight: '1px solid rgba(255,255,255,0.06)',
             display: 'flex',
             flexDirection: 'column',
+            // Scrollbar profissional para sidebar
+            '&::-webkit-scrollbar': {
+              width: '6px',
+            },
+            '&::-webkit-scrollbar-track': {
+              background: 'transparent',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: '3px',
+              '&:hover': {
+                background: 'rgba(255,255,255,0.25)',
+              },
+            },
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(255,255,255,0.15) transparent',
           },
         }}
         open={open}
@@ -183,60 +228,61 @@ const Layout = ({ children, toggleTheme, mode }) => {
           py: 2, 
           display: 'flex', 
           alignItems: 'center', 
-          justifyContent: open ? 'initial' : 'center',
+          justifyContent: 'center',
           minHeight: 60,
-          gap: 1.5,
+          gap: open ? 1.5 : 0.5,
+          flexDirection: open ? 'row' : 'column',
         }}>
-          {/* Ícone do logo: sempre visível, serve de botão toggle quando colapsado */}
-          <Tooltip title={!open ? 'Expandir menu' : ''} placement="right" arrow>
-            <Box sx={{
-              width: 38,
-              height: 38,
-              minWidth: 38,
-              borderRadius: 2,
-              bgcolor: accentColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'transform 0.2s',
-              '&:hover': { transform: 'scale(1.05)' },
-            }}
-              onClick={!open ? handleDrawerToggle : undefined}
-            >
-              <CampaignIcon sx={{ color: '#fff', fontSize: 20 }} />
-            </Box>
-          </Tooltip>
-
-          {/* Texto do logo + botão fechar (fade controlado) */}
-          <Box sx={{ ...textFadeSx(open), display: 'flex', alignItems: 'center', flexGrow: 1, justifyContent: 'space-between', pointerEvents: open ? 'auto' : 'none' }}>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ lineHeight: 1.2, letterSpacing: '0.02em' }}>
-                HED AD
-              </Typography>
-              <Typography variant="caption" noWrap sx={{ color: mutedText, fontSize: '0.65rem', lineHeight: 1 }}>
-                Digital Signage
-              </Typography>
-            </Box>
-            <IconButton 
-              onClick={handleDrawerToggle} 
-              sx={{ 
-                color: 'rgba(255,255,255,0.6)', 
-                '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
-                width: 34,
-                height: 34,
-              }}
-            >
-              <ChevronLeftIcon fontSize="small" />
-            </IconButton>
+          {/* Ícone do logo: sempre visível */}
+          <Box sx={{
+            width: 38,
+            height: 38,
+            minWidth: 38,
+            borderRadius: 2,
+            bgcolor: accentColor,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: !open ? 'pointer' : 'default',
+            transition: 'transform 0.2s',
+            '&:hover': !open ? { transform: 'scale(1.05)' } : {},
+          }}
+            onClick={!open ? handleDrawerToggle : undefined}
+          >
+            <CampaignIcon sx={{ color: '#fff', fontSize: 20 }} />
           </Box>
+
+          {/* Texto do logo + botão fechar (fade controlado, só quando aberto) */}
+          {open && (
+            <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, justifyContent: 'space-between' }}>
+              <Box>
+                <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ lineHeight: 1.2, letterSpacing: '0.02em' }}>
+                  HED AD
+                </Typography>
+                <Typography variant="caption" noWrap sx={{ color: mutedText, fontSize: '0.65rem', lineHeight: 1 }}>
+                  Digital Signage
+                </Typography>
+              </Box>
+              <IconButton 
+                onClick={handleDrawerToggle} 
+                sx={{ 
+                  color: 'rgba(255,255,255,0.6)', 
+                  '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
+                  width: 34,
+                  height: 34,
+                }}
+              >
+                <ChevronLeftIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          )}
         </Box>
 
         <Divider sx={{ bgcolor: 'rgba(255,255,255,0.06)', mx: 1 }} />
 
         {/* User Profile */}
-        <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: open ? 'initial' : 'center' }}>
-          <Tooltip title={!open ? userName : ''} placement="right" arrow>
+        <Tooltip title={!open ? `${userName} — ${userRole === 'ADMIN_HED' ? 'Administrador HED' : 'Parceiro Comercial'}` : ''} placement="right" arrow>
+          <Box sx={{ px: open ? 2 : 1, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: open ? 'initial' : 'center' }}>
             <Avatar 
               sx={{ 
                 width: 36, 
@@ -250,31 +296,34 @@ const Layout = ({ children, toggleTheme, mode }) => {
             >
               {userName.charAt(0).toUpperCase()}
             </Avatar>
-          </Tooltip>
-          <Box sx={{ ...textFadeSx(open), overflow: 'hidden' }}>
-            <Typography variant="body2" fontWeight={600} noWrap sx={{ color: 'rgba(255,255,255,0.9)' }}>
-              {userName}
-            </Typography>
-            <Typography variant="caption" noWrap sx={{ color: mutedText, fontSize: '0.7rem' }}>
-              {userRole === 'ADMIN_HED' ? 'Administrador HED' : 'Parceiro Comercial'}
-            </Typography>
+            {open && (
+              <Box sx={{ overflow: 'hidden', flexGrow: 1 }}>
+                <Typography variant="body2" fontWeight={600} noWrap sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                  {userName}
+                </Typography>
+                <Typography variant="caption" noWrap sx={{ color: mutedText, fontSize: '0.7rem' }}>
+                  {userRole === 'ADMIN_HED' ? 'Administrador HED' : 'Parceiro Comercial'}
+                </Typography>
+              </Box>
+            )}
           </Box>
-        </Box>
+        </Tooltip>
 
         <Divider sx={{ bgcolor: 'rgba(255,255,255,0.06)', mx: 1, mb: 1 }} />
 
         {/* Seção: Menu Principal */}
-        <Typography 
-          variant="overline" 
-          sx={{ 
-            px: 3, pt: 1.5, pb: 0.5, color: mutedText, fontSize: '0.65rem', letterSpacing: '0.08em',
-            ...textFadeSx(open),
-            display: 'block',
-            height: open ? 'auto' : 0,
-          }}
-        >
-          Menu Principal
-        </Typography>
+        {open && (
+          <Typography 
+            variant="overline" 
+            sx={{ 
+              px: 3, pt: 1.5, pb: 0.5, color: mutedText, fontSize: '0.65rem', letterSpacing: '0.08em',
+              display: 'block',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Menu Principal
+          </Typography>
+        )}
 
         <List sx={{ px: 0, py: 0 }}>
           {mainMenuItems.map(renderNavItem)}
@@ -283,17 +332,18 @@ const Layout = ({ children, toggleTheme, mode }) => {
         {/* Seção: Suporte */}
         <Box sx={{ mt: 1 }}>
           <Divider sx={{ bgcolor: 'rgba(255,255,255,0.06)', mx: 1, mb: 0.5 }} />
-          <Typography 
-            variant="overline" 
-            sx={{ 
-              px: 3, pt: 1.5, pb: 0.5, color: mutedText, fontSize: '0.65rem', letterSpacing: '0.08em',
-              ...textFadeSx(open),
-              display: 'block',
-              height: open ? 'auto' : 0,
-            }}
-          >
-            Suporte
-          </Typography>
+          {open && (
+            <Typography 
+              variant="overline" 
+              sx={{ 
+                px: 3, pt: 1.5, pb: 0.5, color: mutedText, fontSize: '0.65rem', letterSpacing: '0.08em',
+                display: 'block',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Suporte
+            </Typography>
+          )}
           <List sx={{ px: 0, py: 0 }}>
             {supportMenuItems.map(renderNavItem)}
           </List>
@@ -338,7 +388,7 @@ const Layout = ({ children, toggleTheme, mode }) => {
           {/* Logout */}
           <Tooltip title={!open ? "Sair" : ""} placement="right" arrow>
             <ListItemButton 
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               sx={{ 
                 borderRadius: 2, 
                 justifyContent: 'initial',
@@ -369,9 +419,50 @@ const Layout = ({ children, toggleTheme, mode }) => {
       </Drawer>
 
       {/* Main Content */}
-      <Box component="main" sx={{ flexGrow: 1, p: 3, transition: 'margin 0.3s' }}>
+      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         {children}
       </Box>
+
+      {/* Diálogo de confirmação de logout */}
+      <Dialog
+        open={logoutDialogOpen}
+        onClose={handleLogoutCancel}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            px: 1,
+            py: 0.5,
+            minWidth: 340,
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
+          <PowerSettingsNewIcon sx={{ color: '#ef4444' }} />
+          Sair do sistema
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Tem certeza que deseja sair? Você precisará fazer login novamente para acessar o sistema.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={handleLogoutCancel} 
+            variant="outlined"
+            sx={{ borderRadius: 2, textTransform: 'none' }}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleLogoutConfirm} 
+            variant="contained" 
+            color="error"
+            sx={{ borderRadius: 2, textTransform: 'none' }}
+          >
+            Sair
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

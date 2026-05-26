@@ -14,57 +14,43 @@ import {
   Snackbar,
   Alert,
   MenuItem,
-  Link,
   Grid,
-  Stack,
   ToggleButton,
   ToggleButtonGroup,
-  FormControlLabel,
-  Switch,
   Dialog,
   DialogContent,
-  LinearProgress
+  LinearProgress,
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import CampaignIcon from '@mui/icons-material/Campaign';
+import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TvIcon from '@mui/icons-material/Tv';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import logoHed from '../assets/logo-hed.png';
 import SmartVideoPlayer from '../components/SmartVideoPlayer';
 
-
-const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
-  const { id } = useParams();
+const AdminCampanhaInstitucional = () => {
   const [nomeCampanha, setNomeCampanha] = useState('');
   const [duracao, setDuracao] = useState(15);
   const [turnos, setTurnos] = useState(['MANHA', 'TARDE', 'NOITE', 'MADRUGADA']);
-  const [categoria, setCategoria] = useState('');
+  const [categoria, setCategoria] = useState('Institucional');
   const [dataInicio, setDataInicio] = useState(() => {
     const d = new Date();
-    if (!isAdmin) {
-      d.setDate(d.getDate() + 1); // No mínimo amanhã para parceiros comerciais
-    }
     return d.toISOString().split('T')[0];
   });
   const [dataFim, setDataFim] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() + 31); // dataInicio + 30 dias
+    d.setDate(d.getDate() + 365);
     return d.toISOString().split('T')[0];
   });
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [existingMediaUrl, setExistingMediaUrl] = useState('');
-  const [existingMediaId, setExistingMediaId] = useState(null);
-  const [existingMediaType, setExistingMediaType] = useState('');
   const [previewUrl, setPreviewUrl] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [diasSemana, setDiasSemana] = useState([0, 1, 2, 3, 4, 5, 6]);
-  const [isInstitucional, setIsInstitucional] = useState(false);
-  const [status, setStatus] = useState('');
   const [tvs, setTvs] = useState(['sala_espera', 'recepcao', 'sala_cirurgia', 'corredor']);
   const [expandedPreview, setExpandedPreview] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -87,14 +73,12 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
     const dicaInterval = setInterval(() => {
       setDicaIndex((prev) => (prev + 1) % DICAS_SAUDE.length);
     }, 10000);
-
     return () => {
       clearInterval(clockInterval);
       clearInterval(dicaInterval);
     };
   }, []);
 
-  // Cleanup de URLs locais temporárias
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -103,81 +87,7 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
     };
   }, [previewUrl]);
 
-  useEffect(() => {
-    if (!isEdit && dataInicio) {
-      const start = new Date(dataInicio + 'T00:00:00');
-      start.setDate(start.getDate() + 30);
-      setDataFim(start.toISOString().split('T')[0]);
-    }
-  }, [dataInicio, isEdit]);
-
-  useEffect(() => {
-    if (isEdit && id) {
-      fetchCampaignDetails();
-    } else if (!isEdit) {
-      // Reset todos os campos ao entrar no modo de criação
-      setNomeCampanha('');
-      setDuracao(15);
-      setTurnos(['MANHA', 'TARDE', 'NOITE', 'MADRUGADA']);
-      setCategoria('');
-      const d = new Date();
-      if (!isAdmin) {
-        d.setDate(d.getDate() + 1);
-      }
-      setDataInicio(d.toISOString().split('T')[0]);
-      const dFim = new Date();
-      dFim.setDate(dFim.getDate() + 31);
-      setDataFim(dFim.toISOString().split('T')[0]);
-      setFile(null);
-      setExistingMediaUrl('');
-      setExistingMediaId(null);
-      setExistingMediaType('');
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-      setPreviewUrl('');
-      setDiasSemana([0, 1, 2, 3, 4, 5, 6]);
-      setIsInstitucional(false);
-      setStatus('');
-      setTvs(['sala_espera', 'recepcao', 'sala_cirurgia', 'corredor']);
-    }
-  }, [isEdit, id]);
-
-  const fetchCampaignDetails = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get(`campanhas/${id}/`);
-      const c = response.data;
-      setNomeCampanha(c.nome);
-      setDuracao(c.duracao);
-      setTurnos(c.turnos && c.turnos.length > 0 ? c.turnos : ['MANHA', 'TARDE', 'NOITE', 'MADRUGADA']);
-      setCategoria(c.categoria || '');
-      setDataInicio(c.data_inicio);
-      setDataFim(c.data_fim);
-      setStatus(c.status);
-      if (c.dias_semana && c.dias_semana.length > 0) {
-        setDiasSemana(c.dias_semana);
-      }
-      setIsInstitucional(c.is_institucional || false);
-      if (c.tvs && c.tvs.length > 0) {
-        setTvs(c.tvs);
-      }
-      
-      if (c.midias && c.midias.length > 0) {
-        setExistingMediaUrl(c.midias[0].arquivo_url);
-        setExistingMediaId(c.midias[0].id);
-        setExistingMediaType(c.midias[0].tipo);
-      }
-    } catch (error) {
-      console.error("Erro ao carregar detalhes da campanha", error);
-      showMessage("Erro ao carregar dados da campanha.", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
-
   const showMessage = (message, severity = 'info') => {
     setSnackbar({ open: true, message, severity });
   };
@@ -194,15 +104,12 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
     }
 
     setFile(selectedFile);
-
-    // Revogar a URL anterior se houver
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
     }
     const localUrl = URL.createObjectURL(selectedFile);
     setPreviewUrl(localUrl);
 
-    // Extração automática de tempo se for vídeo
     if (selectedFile.type.startsWith('video')) {
       const video = document.createElement('video');
       video.preload = 'metadata';
@@ -213,14 +120,13 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
       };
       video.src = localUrl;
     } else {
-      // Imagem - padrão 15s
       setDuracao(15);
     }
   };
 
   const handleCreateCampanha = async (e) => {
     e.preventDefault();
-    if (!file && !existingMediaUrl) {
+    if (!file) {
       alert("Selecione um arquivo de mídia.");
       return;
     }
@@ -231,97 +137,48 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
 
     setLoading(true);
     try {
-      let publicUrl = existingMediaUrl;
-      
-      if (file) {
-        showMessage("Enviando mídia...", "info");
-        setUploadProgress(0);
-        publicUrl = await uploadMidiaWithProgress(file, (percent) => {
-          setUploadProgress(percent);
-        });
-        
-        if (!publicUrl) {
-          throw new Error("Não foi possível obter a URL pública do arquivo.");
-        }
-        setUploadProgress(100);
+      showMessage("Enviando mídia...", "info");
+      setUploadProgress(0);
+      const publicUrl = await uploadMidiaWithProgress(file, (percent) => {
+        setUploadProgress(percent);
+      });
+
+      if (!publicUrl) {
+        throw new Error("Não foi possível obter a URL pública do arquivo.");
       }
+      setUploadProgress(100);
 
-      let campanhaId = id;
+      showMessage("Criando campanha institucional...", "info");
+      const campanhaResponse = await api.post('campanhas/', {
+        nome: nomeCampanha,
+        status: 'APROVADA',
+        duracao: parseInt(duracao),
+        turnos: turnos,
+        categoria: categoria,
+        data_inicio: dataInicio,
+        data_fim: dataFim,
+        dias_semana: diasSemana,
+        is_institucional: true,
+        tvs: tvs,
+      });
 
-      if (isEdit) {
-        showMessage("Atualizando registro da campanha...", "info");
-        await api.patch(`campanhas/${id}/`, {
-          nome: nomeCampanha,
-          duracao: parseInt(duracao),
-          turnos: turnos,
-          categoria: categoria,
-          data_inicio: dataInicio,
-          data_fim: dataFim,
-          dias_semana: diasSemana,
-          is_institucional: isInstitucional,
-          tvs: tvs,
-        });
+      const campanhaId = campanhaResponse.data.id;
 
-        if (file) {
-          showMessage("Salvando nova mídia...", "info");
-          const fileType = file.type.startsWith('video') ? 'VIDEO' : 'IMAGEM';
-          
-          if (existingMediaId) {
-            await api.put(`midias/${existingMediaId}/`, {
-              campanha: campanhaId,
-              tipo: fileType,
-              arquivo_url: publicUrl
-            });
-          } else {
-            await api.post('midias/', {
-              campanha: campanhaId,
-              tipo: fileType,
-              arquivo_url: publicUrl
-            });
-          }
-        }
-        
-        showMessage("Campanha atualizada com sucesso!", "success");
-      } else {
-        showMessage("Criando registro da campanha...", "info");
-        const campanhaResponse = await api.post('campanhas/', {
-          nome: nomeCampanha,
-          status: 'EM_ANALISE',
-          duracao: parseInt(duracao),
-          turnos: turnos,
-          categoria: categoria,
-          data_inicio: dataInicio,
-          data_fim: dataFim,
-          dias_semana: diasSemana,
-          is_institucional: isInstitucional,
-          tvs: tvs,
-        });
+      showMessage("Salvando mídia...", "info");
+      const fileType = file.type.startsWith('video') ? 'VIDEO' : 'IMAGEM';
+      await api.post('midias/', {
+        campanha: campanhaId,
+        tipo: fileType,
+        arquivo_url: publicUrl,
+      });
 
-        campanhaId = campanhaResponse.data.id;
-
-        showMessage("Salvando mídia e finalizando...", "info");
-        const fileType = file.type.startsWith('video') ? 'VIDEO' : 'IMAGEM';
-        
-        await api.post('midias/', {
-          campanha: campanhaId,
-          tipo: fileType,
-          arquivo_url: publicUrl
-        });
-        
-        showMessage("Campanha enviada com sucesso para análise!", "success");
-      }
-
+      showMessage("Campanha institucional criada com sucesso!", "success");
       setNomeCampanha('');
       setFile(null);
-      
+
       setTimeout(() => {
-        if (isAdmin) {
-          navigate('/admin');
-        } else {
-          navigate('/parceiro/campanhas');
-        }
+        navigate('/admin');
       }, 2000);
-      
     } catch (error) {
       console.error("Erro no processo de salvamento:", error);
       const errorMsg = error.response?.data?.detail || error.response?.data?.non_field_errors?.[0] || error.message || "Erro desconhecido ao salvar.";
@@ -330,15 +187,13 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
       setLoading(false);
     }
   };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <IconButton onClick={() => navigate(isAdmin ? '/admin' : '/parceiro/campanhas')} color="primary">
-          <ArrowBackIcon />
-        </IconButton>
         <Typography variant="h4" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <CampaignIcon fontSize="large" color="primary" />
-          {isEdit ? 'Editar Campanha' : 'Nova Campanha'}
+          <LocalHospitalIcon fontSize="large" color="primary" />
+          Nova Campanha Institucional
         </Typography>
       </Box>
 
@@ -348,7 +203,7 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
           <Card sx={{ borderRadius: 3, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
             <CardContent>
               <Typography variant="h6" gutterBottom color="secondary" sx={{ fontWeight: 'bold' }}>
-                Configurações do Anúncio
+                Configurações da Campanha Institucional
               </Typography>
               <Box component="form" onSubmit={handleCreateCampanha} sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
                 <TextField
@@ -364,8 +219,8 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
                   required
                   inputProps={{ maxLength: 20 }}
                   helperText={`${nomeCampanha.length}/20 caracteres`}
+                  placeholder="Ex: Dicas de Saúde"
                 />
-
 
                 <Box sx={{ width: '100%' }}>
                   <Typography variant="body2" color="textSecondary" gutterBottom sx={{ fontWeight: 'bold', mb: 1 }}>
@@ -378,30 +233,19 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
                     aria-label="turnos de exibição"
                     fullWidth
                     sx={{ 
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 1,
+                      display: 'flex', flexWrap: 'wrap', gap: 1,
                       '& .MuiToggleButton-root': {
-                        flex: 1,
-                        minWidth: '100px',
-                        borderRadius: '12px !important',
-                        border: '1px solid !important',
-                        borderColor: 'divider',
-                        fontWeight: 'bold',
-                        textTransform: 'none',
-                        py: 1.5,
-                        '&.Mui-selected': {
-                          bgcolor: 'primary.main',
-                          color: 'white',
-                          '&:hover': { bgcolor: 'primary.dark' }
-                        }
+                        flex: 1, minWidth: '100px', borderRadius: '12px !important',
+                        border: '1px solid !important', borderColor: 'divider',
+                        fontWeight: 'bold', textTransform: 'none', py: 1.5,
+                        '&.Mui-selected': { bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }
                       }
                     }}
                   >
-                    <ToggleButton value="MANHA" aria-label="manhã">Manhã (06:00 - 11:59)</ToggleButton>
-                    <ToggleButton value="TARDE" aria-label="tarde">Tarde (12:00 - 17:59)</ToggleButton>
-                    <ToggleButton value="NOITE" aria-label="noite">Noite (18:00 - 23:59)</ToggleButton>
-                    <ToggleButton value="MADRUGADA" aria-label="madrugada">Madrugada (00:00 - 05:59)</ToggleButton>
+                    <ToggleButton value="MANHA" aria-label="manhã">Manhã (06-12h)</ToggleButton>
+                    <ToggleButton value="TARDE" aria-label="tarde">Tarde (12-18h)</ToggleButton>
+                    <ToggleButton value="NOITE" aria-label="noite">Noite (18-00h)</ToggleButton>
+                    <ToggleButton value="MADRUGADA" aria-label="madrugada">Madrugada (00-06h)</ToggleButton>
                   </ToggleButtonGroup>
                 </Box>
 
@@ -412,26 +256,17 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
                     fullWidth
                     sx={{ flex: 1 }}
                     InputLabelProps={{ shrink: true }}
-                    inputProps={{
-                      min: (!isEdit && !isAdmin) ? (() => {
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        return tomorrow.toISOString().split('T')[0];
-                      })() : undefined
-                    }}
                     value={dataInicio}
-                    disabled={isEdit && status !== '' && status !== 'EM_ANALISE' && !isAdmin}
                     onChange={(e) => setDataInicio(e.target.value)}
                     required
                   />
                   <TextField
-                    label="Data de Término (Calculada - 30 Dias)"
+                    label="Data de Término"
                     type="date"
                     fullWidth
                     sx={{ flex: 1 }}
                     InputLabelProps={{ shrink: true }}
                     value={dataFim}
-                    disabled={!isAdmin}
                     onChange={(e) => setDataFim(e.target.value)}
                     required
                   />
@@ -443,29 +278,16 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
                   </Typography>
                   <ToggleButtonGroup
                     value={diasSemana}
-                    onChange={(e, newDays) => {
-                      if (newDays.length > 0) {
-                        setDiasSemana(newDays);
-                      }
-                    }}
+                    onChange={(e, newDays) => { if (newDays.length > 0) setDiasSemana(newDays); }}
                     exclusive={false}
                     aria-label="dias da semana"
                     size="small"
                     sx={{ 
-                      gap: 1, 
-                      flexWrap: 'wrap',
+                      gap: 1, flexWrap: 'wrap',
                       '& .MuiToggleButton-root': {
-                        borderRadius: '50% !important',
-                        width: 40,
-                        height: 40,
-                        border: '1px solid !important',
-                        borderColor: 'divider',
-                        fontWeight: 'bold',
-                        '&.Mui-selected': {
-                          bgcolor: 'primary.main',
-                          color: 'white',
-                          '&:hover': { bgcolor: 'primary.dark' }
-                        }
+                        borderRadius: '50% !important', width: 40, height: 40,
+                        border: '1px solid !important', borderColor: 'divider', fontWeight: 'bold',
+                        '&.Mui-selected': { bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }
                       }
                     }}
                   >
@@ -490,23 +312,12 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
                     aria-label="televisões de exibição"
                     fullWidth
                     sx={{ 
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 1,
+                      display: 'flex', flexWrap: 'wrap', gap: 1,
                       '& .MuiToggleButton-root': {
-                        flex: 1,
-                        minWidth: '120px',
-                        borderRadius: '12px !important',
-                        border: '1px solid !important',
-                        borderColor: 'divider',
-                        fontWeight: 'bold',
-                        textTransform: 'none',
-                        py: 1.25,
-                        '&.Mui-selected': {
-                          bgcolor: 'primary.main',
-                          color: 'white',
-                          '&:hover': { bgcolor: 'primary.dark' }
-                        }
+                        flex: 1, minWidth: '120px', borderRadius: '12px !important',
+                        border: '1px solid !important', borderColor: 'divider',
+                        fontWeight: 'bold', textTransform: 'none', py: 1.25,
+                        '&.Mui-selected': { bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }
                       }
                     }}
                   >
@@ -519,23 +330,19 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
 
                 <TextField
                   select
-                  label="Categoria (Opcional)"
+                  label="Categoria"
                   variant="outlined"
                   fullWidth
                   value={categoria}
                   onChange={(e) => setCategoria(e.target.value)}
                 >
-                  <MenuItem value=""><em>Nenhuma / Não especificada</em></MenuItem>
+                  <MenuItem value="Institucional">Institucional</MenuItem>
                   <MenuItem value="Saúde">Saúde</MenuItem>
-                  <MenuItem value="Alimentação">Alimentação</MenuItem>
-                  <MenuItem value="Serviços">Serviços</MenuItem>
-                  <MenuItem value="Produto">Produto</MenuItem>
-                  <MenuItem value="Promoção / Vendas">Promoção / Vendas</MenuItem>
                   <MenuItem value="Eventos">Eventos</MenuItem>
                   <MenuItem value="Entretenimento">Entretenimento</MenuItem>
                   <MenuItem value="Outros">Outros</MenuItem>
                 </TextField>
-                
+
                 <Box sx={{ border: '2px dashed #ccc', p: 3, textAlign: 'center', borderRadius: 2, bgcolor: 'action.hover', position: 'relative' }}>
                   {/* Overlay de loading durante upload */}
                   {loading && (
@@ -564,26 +371,21 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
                   />
                   <label htmlFor="raised-button-file">
                     <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />} disabled={loading}>
-                      {existingMediaUrl ? 'Substituir Mídia' : 'Selecionar Mídia'}
+                      Selecionar Mídia
                     </Button>
                   </label>
                   <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
                     Máximo 10MB (A duração real do vídeo será usada)
                   </Typography>
-                  {file ? (
-                    <Typography sx={{ mt: 1, fontWeight: 'bold', color: 'primary.main' }}>Novo arquivo: {file.name}</Typography>
-                  ) : existingMediaUrl ? (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="caption" display="block" color="textSecondary">Mídia atual:</Typography>
-                      <Link href={existingMediaUrl} target="_blank" rel="noopener" sx={{ fontWeight: 'medium' }}>
-                        Visualizar mídia cadastrada
-                      </Link>
-                    </Box>
-                  ) : null}
+                  {file && (
+                    <Typography sx={{ mt: 1, fontWeight: 'bold', color: 'primary.main' }}>
+                      Arquivo: {file.name}
+                    </Typography>
+                  )}
                   <Box sx={{ mt: 2, p: 1.5, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
                     <AccessTimeIcon color="primary" />
                     <Typography variant="body2" fontWeight="bold">
-                      Duração da campanha: {duracao} {duracao === 1 ? 'segundo' : 'segundos'}
+                      Duração: {duracao} {duracao === 1 ? 'segundo' : 'segundos'}
                     </Typography>
                   </Box>
                 </Box>
@@ -593,10 +395,10 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
                   variant="contained" 
                   size="large"
                   disabled={loading}
-                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <CloudUploadIcon />}
+                  startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LocalHospitalIcon />}
                   sx={{ py: 1.5, fontWeight: 'bold' }}
                 >
-                  {loading ? 'Processando...' : isEdit ? 'Salvar Alterações' : 'Enviar para o HED'}
+                  {loading ? 'Processando...' : 'Criar Campanha Institucional'}
                 </Button>
 
                 {/* Barra de progresso do upload */}
@@ -636,7 +438,7 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
             <Typography variant="h6" fontWeight="bold" gutterBottom color="secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <TvIcon color="primary" />
               Simulador da TV do Hospital
-              {(previewUrl || existingMediaUrl) && (
+              {previewUrl && (
                 <IconButton 
                   onClick={() => setExpandedPreview(true)} 
                   size="small" 
@@ -649,99 +451,48 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
               )}
             </Typography>
             
-            {/* TV Frame Bezel */}
-            <Box 
-              sx={{
-                width: '100%',
-                bgcolor: '#1a1a1a',
-                borderRadius: 4,
-                p: 1.5,
-                boxShadow: '0 20px 40px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.1)',
-                border: '4px solid #2d2d2d',
-                position: 'relative'
-              }}
-            >
-              {/* Screen Area (16:9) */}
-              <Box 
-                sx={{
-                  width: '100%',
-                  pt: '56.25%', // 16:9 Aspect Ratio
-                  position: 'relative',
-                  bgcolor: '#000',
-                  overflow: 'hidden',
-                  borderRadius: 1,
-                  boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)'
-                }}
-              >
-                {/* Inner Content (Grid overlay inside 100% position) */}
+            <Box sx={{ width: '100%', bgcolor: '#1a1a1a', borderRadius: 4, p: 1.5, boxShadow: '0 20px 40px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.1)', border: '4px solid #2d2d2d', position: 'relative' }}>
+              <Box sx={{ width: '100%', pt: '56.25%', position: 'relative', bgcolor: '#000', overflow: 'hidden', borderRadius: 1, boxShadow: 'inset 0 0 10px rgba(0,0,0,0.8)' }}>
                 <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex' }}>
                   
-                  {/* Main Media Panel (92% width) */}
+                  {/* Main Media Panel */}
                   <Box sx={{ flex: 9.2, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
-                    {previewUrl || existingMediaUrl ? (
-                      // Se for vídeo
-                      (file && file.type.startsWith('video')) || (!file && existingMediaType === 'VIDEO') ? (
+                    {previewUrl ? (
+                      file && file.type.startsWith('video') ? (
                         <SmartVideoPlayer 
-                          key={previewUrl || existingMediaUrl}
-                          src={previewUrl || existingMediaUrl}
+                          key={previewUrl}
+                          src={previewUrl}
                           autoPlay
                           muted
                           playsInline
                           showReplayButton={true}
                         />
                       ) : (
-                        // Imagem
-                        <Box 
-                          component="img" 
-                          src={previewUrl || existingMediaUrl} 
-                          sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                        />
+                        <Box component="img" src={previewUrl} sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                       )
                     ) : (
-                      // Sem mídia - placeholder
                       <Box sx={{ textAlign: 'center', color: '#666', p: 2 }}>
                         <Typography variant="caption" sx={{ fontStyle: 'italic', display: 'block', mb: 1 }}>
                           Nenhuma mídia selecionada.
                         </Typography>
                         <Typography variant="caption" sx={{ display: 'block', opacity: 0.7, fontSize: '0.65rem' }}>
-                          Adicione um arquivo .mp4 ou imagem para visualizar a simulação.
+                          Adicione um arquivo .mp4 ou imagem para visualizar.
                         </Typography>
                       </Box>
                     )}
                   </Box>
 
-                  {/* L-Bar Panel (8% width) */}
-                  <Box sx={{ 
-                    flex: 0.8, 
-                    bgcolor: '#003B67', 
-                    color: '#d3d3d3', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    borderLeft: '1px solid #068dbd',
-                    p: 0.5,
-                    boxSizing: 'border-box'
-                  }}>
-                    {/* Logo HED */}
+                  {/* L-Bar Panel */}
+                  <Box sx={{ flex: 0.8, bgcolor: '#003B67', color: '#d3d3d3', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', borderLeft: '1px solid #068dbd', p: 0.5, boxSizing: 'border-box' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', pt: 0.5, width: '100%' }}>
-                      <Box 
-                        component="img"
-                        src={logoHed}
-                        alt="Hospital"
-                        sx={{ width: '100%', maxWidth: '35px', height: 'auto', objectFit: 'contain' }}
-                      />
+                      <Box component="img" src={logoHed} alt="Hospital" sx={{ width: '100%', maxWidth: '35px', height: 'auto', objectFit: 'contain' }} />
                     </Box>
-
-                    {/* Relógio Simulado */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', my: 1 }}>
                       <AccessTimeIcon sx={{ fontSize: 10, color: '#068dbd', mb: 0.2 }} />
                       <Typography sx={{ color: '#fff', fontWeight: 'bold', fontSize: '0.45rem', lineHeight: 1 }}>
                         {simulatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </Typography>
                     </Box>
-
-                    {/* Dicas de Saúde */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pb: 0.5, textAlign: 'center', width: '100%' }}>
                       <FavoriteIcon sx={{ color: '#068dbd', mb: 0.2, fontSize: 8 }} />
                       <Typography sx={{ fontWeight: 500, lineHeight: 1.1, fontSize: '0.22rem', scale: '0.9', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
@@ -752,30 +503,9 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
 
                 </Box>
               </Box>
-              
-              {/* TV Stand Base Support */}
-              <Box 
-                sx={{
-                  width: '40px',
-                  height: '10px',
-                  bgcolor: '#1a1a1a',
-                  mx: 'auto',
-                  mt: 0,
-                  borderBottom: '2px solid #2d2d2d'
-                }}
-              />
-              <Box 
-                sx={{
-                  width: '90px',
-                  height: '4px',
-                  bgcolor: '#111',
-                  mx: 'auto',
-                  borderRadius: '3px 3px 0 0'
-                }}
-              />
+              <Box sx={{ width: '40px', height: '10px', bgcolor: '#1a1a1a', mx: 'auto', mt: 0, borderBottom: '2px solid #2d2d2d' }} />
+              <Box sx={{ width: '90px', height: '4px', bgcolor: '#111', mx: 'auto', borderRadius: '3px 3px 0 0' }} />
             </Box>
-            
-            {/* Informações Auxiliares do Preview */}
           </Box>
         </Grid>
       </Grid>
@@ -795,18 +525,18 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
             <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex' }}>
               {/* Área principal de mídia */}
               <Box sx={{ flex: 9.2, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
-                {(previewUrl || existingMediaUrl) ? (
-                  (file && file.type.startsWith('video')) || (!file && existingMediaType === 'VIDEO') ? (
+                {previewUrl ? (
+                  file && file.type.startsWith('video') ? (
                     <SmartVideoPlayer 
-                      key={`expanded-${previewUrl || existingMediaUrl}`}
-                      src={previewUrl || existingMediaUrl}
+                      key={`expanded-${previewUrl}`}
+                      src={previewUrl}
                       autoPlay
                       muted
                       playsInline
                       showReplayButton={true}
                     />
                   ) : (
-                    <Box component="img" src={previewUrl || existingMediaUrl} sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <Box component="img" src={previewUrl} sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   )
                 ) : null}
               </Box>
@@ -847,4 +577,4 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
   );
 };
 
-export default ParceiroDashboard;
+export default AdminCampanhaInstitucional;

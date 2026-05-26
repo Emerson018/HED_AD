@@ -1,9 +1,18 @@
 import React from 'react';
-import { Container, Typography, Paper, Box } from '@mui/material';
+import { Container, Typography, Paper, Box, IconButton } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useNavigate } from 'react-router-dom';
 
 const TermosDeUso = () => {
+  const navigate = useNavigate();
+
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
+      <Box sx={{ mb: 2 }}>
+        <IconButton onClick={() => navigate(-1)} color="primary">
+          <ArrowBackIcon />
+        </IconButton>
+      </Box>
       <Paper 
         elevation={2} 
         sx={{ 

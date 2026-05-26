@@ -13,6 +13,7 @@ import ReplayIcon from '@mui/icons-material/Replay';
 const SmartVideoPlayer = ({ 
   src, 
   onEnded, 
+  onTimeUpdate,
   autoPlay = true, 
   muted = true, 
   playsInline = true,
@@ -66,7 +67,7 @@ const SmartVideoPlayer = ({
     };
 
     const handleTimeUpdate = () => {
-      if (bg && Math.abs(bg.currentTime - fg.currentTime) > 0.3) {
+      if (bg && Math.abs(bg.currentTime - fg.currentTime) > 1.5) {
         bg.currentTime = fg.currentTime;
       }
     };
@@ -181,6 +182,7 @@ const SmartVideoPlayer = ({
           muted={muted}
           playsInline={playsInline}
           onEnded={handleEnded}
+          onTimeUpdate={onTimeUpdate ? (e) => onTimeUpdate(e.target.currentTime, e.target.duration) : undefined}
           style={{
             width: '100%',
             height: '100%',

@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
@@ -53,12 +54,58 @@ class CampanhaViewSet(viewsets.ModelViewSet):
             )
         return Campanha.objects.none()
 
+    @action(detail=False, methods=['get'])
+    def ocupacao(self, request):
+        dia_param = request.query_params.get('dia')
+        tv_param = request.query_params.get('tv')
+        if dia_param is not None:
+            try:
+                dia = int(dia_param)
+            except ValueError:
+                return Response({"error": "Dia inválido"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            dia = 0
+
+        # Filtra campanhas aprovadas ou ativas
+        campanhas = Campanha.objects.filter(status__in=['APROVADA', 'ATIVA'])
+        
+        # Filtra em Python as campanhas que rodam no dia e TV solicitados
+        campanhas_filtradas = []
+        for c in campanhas:
+            if isinstance(c.dias_semana, list) and dia in c.dias_semana:
+                if not tv_param or (isinstance(c.tvs, list) and tv_param in c.tvs):
+                    campanhas_filtradas.append(c)
+
+        turnos = ['MANHA', 'TARDE', 'NOITE', 'MADRUGADA']
+        dados = {t: {"vendido": 0, "institucional": 0} for t in turnos}
+        
+        for c in campanhas_filtradas:
+            for t in c.turnos or []:
+                if t in dados:
+                    if c.is_institucional:
+                        dados[t]["institucional"] += c.duracao
+                    else:
+                        dados[t]["vendido"] += c.duracao
+                        
+        return Response(dados, status=status.HTTP_200_OK)
+
     def perform_create(self, serializer):
         user = self.request.user
-        if hasattr(user, 'perfil_parceiro'):
-            campanha = serializer.save(parceiro=user.perfil_parceiro)
-        else:
-            campanha = serializer.save()
+        # Verifica se o usuário tem um perfil de parceiro real
+        try:
+            parceiro = user.perfil_parceiro
+            campanha = serializer.save(parceiro=parceiro)
+        except Parceiro.DoesNotExist:
+            # Admin não tem perfil_parceiro — usa ou cria um parceiro institucional
+            parceiro_institucional = Parceiro.objects.filter(nome_empresa='HED Institucional').first()
+            if not parceiro_institucional:
+                parceiro_institucional = Parceiro.objects.create(
+                    usuario=user,
+                    nome_empresa='HED Institucional',
+                    cnpj=None,
+                    telefone=None,
+                )
+            campanha = serializer.save(parceiro=parceiro_institucional)
         
         AuditoriaLog.objects.create(
             usuario=user,
@@ -89,12 +136,12 @@ class CampanhaViewSet(viewsets.ModelViewSet):
 
             # 2. Se for Parceiro, força o status a retornar para 'EM_ANALISE' apenas se alterou outros campos além de nome/categoria
             needs_review = False
-            for field in ['duracao', 'turnos', 'dias_semana', 'data_inicio', 'data_fim', 'is_institucional']:
+            for field in ['duracao', 'turnos', 'dias_semana', 'data_inicio', 'data_fim', 'is_institucional', 'tvs']:
                 if field in serializer.validated_data:
                     old_val = getattr(old_instance, field)
                     new_val = serializer.validated_data[field]
                     
-                    if field in ['turnos', 'dias_semana']:
+                    if field in ['turnos', 'dias_semana', 'tvs']:
                         if set(old_val or []) != set(new_val or []):
                             needs_review = True
                             break
@@ -190,6 +237,32 @@ class TVPlaylistView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
+        # Validação do token do monitor (Device Token)
+        token_param = request.query_params.get('token')
+        if token_param:
+            try:
+                from .models import MonitorTV
+                monitor = MonitorTV.objects.get(token=token_param)
+                if not monitor.is_active:
+                    return Response(
+                        {"error": "Monitor desativado. Contate o administrador."},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+                # Atualiza último ping
+                import datetime as dt
+                monitor.ultimo_ping = dt.datetime.now()
+                monitor.save(update_fields=['ultimo_ping'])
+            except MonitorTV.DoesNotExist:
+                return Response(
+                    {"error": "Token de monitor inválido."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            except (ValueError, TypeError):
+                return Response(
+                    {"error": "Formato de token inválido."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
         turno_param = request.query_params.get('turno')
         
         if turno_param in ['MANHA', 'TARDE', 'NOITE', 'MADRUGADA']:
@@ -206,17 +279,31 @@ class TVPlaylistView(APIView):
             else:
                 turno_atual = 'MADRUGADA'
 
+        dia_param = request.query_params.get('dia')
+        if dia_param is not None:
+            try:
+                dia_atual = int(dia_param)
+            except ValueError:
+                dia_atual = datetime.datetime.now().weekday()
+        else:
+            dia_atual = datetime.datetime.now().weekday()
+
         # Filtra campanhas aprovadas ou ativas (mesma lógica do simulador)
         campanhas_hoje = Campanha.objects.filter(
             status__in=['APROVADA', 'ATIVA']
         ).select_related('parceiro').prefetch_related('midias', 'agendamentos')
         
-        # Filtra pelo turno selecionado/atual
+        tv_param = request.query_params.get('tv')
+        
+        # Filtra pelo turno selecionado/atual, dia da semana E TV
         campanhas_ativas = []
         for c in campanhas_hoje:
             turnos_list = c.turnos or []
-            if turno_atual in turnos_list:
-                campanhas_ativas.append(c)
+            dias_list = c.dias_semana or []
+            tvs_list = c.tvs or []
+            if turno_atual in turnos_list and dia_atual in dias_list:
+                if not tv_param or tv_param in tvs_list:
+                    campanhas_ativas.append(c)
         
         # Separa as comerciais das institucionais
         comerciais = [c for c in campanhas_ativas if not c.is_institucional]
@@ -263,7 +350,7 @@ class RegisterView(APIView):
         errors = {}
 
         # Sanitizar e padronizar entradas
-        username = data.get('username', '').strip()
+        username = data.get('username', '').strip().lower()
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
         nome_empresa = data.get('nome_empresa', '').strip()
@@ -271,10 +358,13 @@ class RegisterView(APIView):
         telefone = data.get('telefone', '').strip()
 
         # Validação do Nome de Usuário
+        import re
         if not username:
             errors['username'] = 'O nome de usuário é obrigatório.'
         elif len(username) < 3:
             errors['username'] = 'O usuário deve ter pelo menos 3 caracteres.'
+        elif not re.match(r'^[a-z0-9.,]+$', username):
+            errors['username'] = 'Apenas letras minúsculas, números, ponto e vírgula são permitidos.'
         elif Usuario.objects.filter(username=username).exists():
             errors['username'] = 'Este nome de usuário já está em uso.'
 
@@ -345,29 +435,38 @@ class RegisterView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class AuditedTokenObtainPairView(TokenObtainPairView):
+    """
+    View de login com auditoria e rate limiting.
+    Limitado a 5 tentativas por minuto (scope: 'login') para prevenir brute-force.
+    """
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'login'
 
     def post(self, request, *args, **kwargs):
-        username = request.data.get('username')
+        username_input = request.data.get('username', '')
         try:
             response = super().post(request, *args, **kwargs)
-            # Se chegou aqui, login deu certo
-            user = get_user_model().objects.get(username=username)
+            # Login bem-sucedido - busca o usuário pelo username ou email
+            Usuario = get_user_model()
+            try:
+                user = Usuario.objects.get(username=username_input)
+            except Usuario.DoesNotExist:
+                user = Usuario.objects.get(email__iexact=username_input)
+            
             AuditoriaLog.objects.create(
                 usuario=user,
-                usuario_str=username,
+                usuario_str=user.username,
                 acao='LOGIN_SUCESSO',
-                descricao=f"Usuário '{username}' autenticou-se com sucesso no painel."
+                descricao=f"Usuário '{user.username}' autenticou-se com sucesso no painel."
             )
             return response
         except Exception as e:
             # Login falhou
             AuditoriaLog.objects.create(
                 usuario=None,
-                usuario_str=username or "desconhecido",
+                usuario_str=username_input or "desconhecido",
                 acao='LOGIN_FALHA',
-                descricao=f"Tentativa de login malsucedida para o usuário '{username}'. Erro: {str(e)}"
+                descricao=f"Tentativa de login malsucedida para '{username_input}'. Erro: {type(e).__name__}"
             )
             raise e
 

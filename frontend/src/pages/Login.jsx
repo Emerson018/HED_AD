@@ -37,6 +37,15 @@ const Login = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const logoutReason = sessionStorage.getItem('logout_reason');
+    if (logoutReason === 'idle') {
+      setSnackbar({ open: true, message: 'Sessão expirada por inatividade. Faça login novamente.', severity: 'warning' });
+      sessionStorage.removeItem('logout_reason');
+    } else if (logoutReason === 'manual') {
+      setSnackbar({ open: true, message: 'Você deslogou com sucesso.', severity: 'success' });
+      sessionStorage.removeItem('logout_reason');
+    }
+    // Compatibilidade com logout antigo
     if (localStorage.getItem('logout_success') === 'true') {
       setSnackbar({ open: true, message: 'Você deslogou com sucesso.', severity: 'success' });
       localStorage.removeItem('logout_success');
@@ -54,9 +63,9 @@ const Login = () => {
   const validate = () => {
     const newErrors = {};
     if (!username.trim()) {
-      newErrors.username = 'O nome de usuário é obrigatório.';
+      newErrors.username = 'O usuário ou e-mail é obrigatório.';
     } else if (username.trim().length < 3) {
-      newErrors.username = 'O usuário deve ter pelo menos 3 caracteres.';
+      newErrors.username = 'Deve ter pelo menos 3 caracteres.';
     }
     
     if (!password) {
@@ -91,6 +100,12 @@ const Login = () => {
       
       const user = meResponse.data;
       
+      // Salvar nome do usuário
+      const displayName = user.first_name 
+        ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` 
+        : user.username;
+      localStorage.setItem('user_name', displayName);
+      
       setSnackbar({ open: true, message: 'Login realizado com sucesso! Redirecionando...', severity: 'success' });
       
       setTimeout(() => {
@@ -99,7 +114,7 @@ const Login = () => {
           navigate('/admin');
         } else {
           localStorage.setItem('user_role', 'PARCEIRO');
-          navigate('/parceiro');
+          navigate('/parceiro/campanhas');
         }
       }, 1200);
     } catch (error) {
@@ -157,7 +172,7 @@ const Login = () => {
                 required
                 fullWidth
                 id="username"
-                label="Nome de Usuário"
+                label="Usuário ou E-mail"
                 name="username"
                 autoComplete="username"
                 autoFocus
@@ -236,21 +251,6 @@ const Login = () => {
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Entrar no Sistema'}
               </Button>
               
-              <Box sx={{ mt: 2.5, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  Ainda não é parceiro?{' '}
-                  <Link 
-                    to="/register" 
-                    style={{ 
-                      textDecoration: 'none', 
-                      color: '#003B67', 
-                      fontWeight: 700 
-                    }}
-                  >
-                    Cadastre-se aqui
-                  </Link>
-                </Typography>
-              </Box>
             </Box>
           </Paper>
         </Container>

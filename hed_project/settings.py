@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 import os
 from pathlib import Path
+from datetime import timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -29,7 +30,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dzd((_1f)u%d@kq+d)a)s
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -100,71 +101,170 @@ if os.environ.get('SUPABASE_DB_HOST'):
         'CONN_HEALTH_CHECKS': True,
     }
 
+
+# ==============================================================================
+# AUTENTICAÇÃO
+# ==============================================================================
+
 AUTH_USER_MODEL = 'signage.Usuario'
-CORS_ALLOW_ALL_ORIGINS = True
+
+AUTHENTICATION_BACKENDS = [
+    'signage.backends.EmailOrUsernameBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+
+# ==============================================================================
+# CORS (Cross-Origin Resource Sharing) - Configuração Estrita
+# ==============================================================================
+# Em desenvolvimento (DEBUG=True), permite todas as origens para facilitar.
+# Em produção (DEBUG=False), apenas os domínios listados são aceitos.
+
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = os.environ.get(
+        'CORS_ALLOWED_ORIGINS',
+        'http://localhost:5173,http://127.0.0.1:5173'
+    ).split(',')
+
+# Headers permitidos nas requisições cross-origin
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'cache-control',
+]
+
+# Métodos HTTP permitidos
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# Permite envio de cookies/credenciais cross-origin (necessário para JWT refresh)
+CORS_ALLOW_CREDENTIALS = True
+
+
+# ==============================================================================
+# DJANGO REST FRAMEWORK - Segurança e Throttling
+# ==============================================================================
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    # Rate Limiting global para proteção contra abuso
     'DEFAULT_THROTTLE_CLASSES': (
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
         'rest_framework.throttling.ScopedRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/day',
-        'user': '1000/day',
-        'login': '15/minute',
-        'register': '5/minute',
-    }
+        'anon': '100/hour',        # Usuários não autenticados: 100 req/hora
+        'user': '1000/hour',       # Usuários autenticados: 1000 req/hora
+        'login': '10/minute',      # Login (JWT): 10 tentativas/minuto (anti brute-force)
+        'register': '5/minute',    # Registro: 5 tentativas/minuto (anti spam)
+    },
+    # Desabilita o browsable API em produção
+    'DEFAULT_RENDERER_CLASSES': (
+        'rest_framework.renderers.JSONRenderer',
+    ) if not DEBUG else (
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+    ),
 }
 
-from datetime import timedelta
+
+# ==============================================================================
+# SIMPLE JWT - Tokens de Acesso
+# ==============================================================================
+
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    # Para ativar rotação de tokens em produção (requer migrate após adicionar token_blacklist):
+    # 'ROTATE_REFRESH_TOKENS': True,
+    # 'BLACKLIST_AFTER_ROTATION': True,
 }
 
 
-# Password validation
-# https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
+# ==============================================================================
+# SECURITY HEADERS & MIDDLEWARES
+# ==============================================================================
+
+# Proteção contra XSS (Cross-Site Scripting)
+# Instrui o navegador a ativar o filtro XSS embutido
+SECURE_BROWSER_XSS_FILTER = True
+
+# Impede o navegador de "adivinhar" o Content-Type (MIME sniffing)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Proteção contra Clickjacking - impede que o site seja embutido em iframes
+X_FRAME_OPTIONS = 'DENY'
+
+# Referrer Policy - limita informações enviadas no header Referer
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+
+# Permissões de funcionalidades do navegador (câmera, microfone, geolocalização)
+PERMISSIONS_POLICY = {
+    'camera': [],
+    'microphone': [],
+    'geolocation': [],
+}
+
+# ==============================================================================
+# CONFIGURAÇÕES PARA PRODUÇÃO COM HTTPS
+# ==============================================================================
+# Ative as linhas abaixo APENAS quando o deploy estiver com HTTPS configurado.
+# Em desenvolvimento local (HTTP), mantenha comentado para evitar erros.
+#
+# SECURE_SSL_REDIRECT = True              # Redireciona todo HTTP para HTTPS
+# SECURE_HSTS_SECONDS = 31536000          # HSTS: força HTTPS por 1 ano
+# SECURE_HSTS_INCLUDE_SUBDOMAINS = True   # Aplica HSTS a subdomínios
+# SECURE_HSTS_PRELOAD = True              # Permite inclusão na lista de preload
+# SESSION_COOKIE_SECURE = True            # Cookie de sessão só via HTTPS
+# CSRF_COOKIE_SECURE = True               # Cookie CSRF só via HTTPS
+# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # Para proxies reversos
+
+
+# ==============================================================================
+# PASSWORD VALIDATION
+# ==============================================================================
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 6}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 
-# Internationalization
-# https://docs.djangoproject.com/en/6.0/topics/i18n/
+# ==============================================================================
+# INTERNACIONALIZAÇÃO
+# ==============================================================================
 
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+LANGUAGE_CODE = 'pt-br'
+TIME_ZONE = 'America/Sao_Paulo'
 USE_I18N = True
-
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.0/howto/static-files/
+# ==============================================================================
+# ARQUIVOS ESTÁTICOS
+# ==============================================================================
 
 STATIC_URL = 'static/'
-
-# Configurações de Segurança
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

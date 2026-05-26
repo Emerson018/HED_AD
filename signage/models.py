@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+import uuid
 
 class Usuario(AbstractUser):
     TIPO_USUARIO_CHOICES = (
@@ -28,6 +29,9 @@ def default_dias_semana():
 def default_turnos():
     return ['MANHA', 'TARDE', 'NOITE', 'MADRUGADA']
 
+def default_tvs():
+    return ['sala_espera', 'recepcao', 'sala_cirurgia', 'corredor']
+
 class Campanha(models.Model):
     STATUS_CHOICES = (
         ('EM_ANALISE', 'Pendente'),
@@ -49,6 +53,7 @@ class Campanha(models.Model):
     turnos = models.JSONField(default=default_turnos, help_text="Lista de turnos selecionados.")
     categoria = models.CharField(max_length=100, blank=True, null=True)
     is_institucional = models.BooleanField(default=False, help_text="Se True, é uma campanha institucional do hospital usada para preencher tempo ocioso.")
+    tvs = models.JSONField(default=default_tvs, help_text="Lista de TVs selecionadas.")
     
     data_inicio = models.DateField()
     data_fim = models.DateField()
@@ -64,16 +69,30 @@ class Campanha(models.Model):
         # Validação estrita de 300 segundos apenas ao aprovar/ativar campanhas comerciais (não-institucionais)
         if self.status in ['APROVADA', 'ATIVA'] and not self.is_institucional:
             turnos_afetados = self.turnos or []
+            dias_afetados = self.dias_semana or []
+            tvs_afetadas = self.tvs or []
             
             for t in turnos_afetados:
-                # Filtra apenas campanhas comerciais aprovadas/ativas (excluindo a atual)
-                qs = Campanha.objects.filter(status__in=['APROVADA', 'ATIVA'], is_institucional=False).exclude(id=self.id)
-                
-                # Soma a duração de todas as campanhas comerciais do turno (filtrando em Python para evitar incompatibilidade com SQLite)
-                total_turno = sum(c.duracao for c in qs if c.turnos and t in c.turnos)
-                
-                if total_turno + self.duracao > 300:
-                    raise ValidationError(f"Inventário do turno {t} está cheio ({total_turno}/300s ocupados).")
+                for d in dias_afetados:
+                    for tv in tvs_afetadas:
+                        # Filtra apenas campanhas comerciais aprovadas/ativas (excluindo a atual)
+                        qs = Campanha.objects.filter(status__in=['APROVADA', 'ATIVA'], is_institucional=False).exclude(id=self.id)
+                        
+                        # Soma a duração de todas as campanhas comerciais do turno, dia e TV específicos
+                        total_turno = sum(
+                            c.duracao for c in qs 
+                            if c.turnos and t in c.turnos and isinstance(c.dias_semana, list) and d in c.dias_semana and isinstance(c.tvs, list) and tv in c.tvs
+                        )
+                        
+                        if total_turno + self.duracao > 300:
+                            dia_nome = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'][d]
+                            tv_nome = {
+                                'sala_espera': 'Sala de Espera',
+                                'recepcao': 'Recepção',
+                                'sala_cirurgia': 'Sala de Cirurgia',
+                                'corredor': 'Corredor Principal'
+                            }.get(tv, tv)
+                            raise ValidationError(f"Inventário do turno {t} está cheio na {tv_nome} para {dia_nome}-feira ({total_turno}/300s ocupados).")
 
     def save(self, *args, **kwargs):
         self.full_clean()
@@ -131,3 +150,34 @@ class AuditoriaLog(models.Model):
 
     def __str__(self):
         return f"{self.criado_em} - {self.usuario_str} - {self.acao}"
+
+
+class MonitorTV(models.Model):
+    """
+    Modelo de segurança para controle de dispositivos (mini-PCs/TVs).
+    Cada TV física recebe um token UUID único. Se o token vazar ou a TV for
+    roubada, o admin pode desativar o monitor com 1 clique (is_active=False),
+    bloqueando instantaneamente o acesso à playlist.
+    """
+    LOCALIZACAO_CHOICES = (
+        ('sala_espera', 'Sala de Espera'),
+        ('recepcao', 'Recepção'),
+        ('sala_cirurgia', 'Sala de Cirurgia'),
+        ('corredor', 'Corredor Principal'),
+    )
+
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, help_text="Token único de autenticação do dispositivo.")
+    nome = models.CharField(max_length=100, help_text="Nome identificador do monitor (ex: TV Recepção 01)")
+    localizacao = models.CharField(max_length=50, choices=LOCALIZACAO_CHOICES, help_text="Local físico onde a TV está instalada.")
+    is_active = models.BooleanField(default=True, help_text="Se False, o token é revogado e a TV não recebe mais conteúdo.")
+    ultimo_ping = models.DateTimeField(null=True, blank=True, help_text="Último momento em que o player fez uma requisição.")
+    criado_em = models.DateTimeField(auto_now_add=True)
+    atualizado_em = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Monitor TV'
+        verbose_name_plural = 'Monitores TV'
+
+    def __str__(self):
+        status = '✓ Ativo' if self.is_active else '✗ Desativado'
+        return f"{self.nome} ({self.localizacao}) [{status}]"

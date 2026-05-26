@@ -16,7 +16,8 @@ import {
   Stack,
   TextField,
   MenuItem,
-  Tooltip
+  Tooltip,
+  Pagination
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CampaignIcon from '@mui/icons-material/Campaign';
@@ -145,6 +146,8 @@ const MinhasCampanhas = () => {
   const [filterTurno, setFilterTurno] = useState('TODOS');
   const [filterDuracao, setFilterDuracao] = useState('TODAS');
   const [filterTipo, setFilterTipo] = useState('TODOS');
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 8;
   const navigate = useNavigate();
 
   const filteredCampanhas = campanhas.filter(c => {
@@ -183,6 +186,15 @@ const MinhasCampanhas = () => {
 
     return matchesSearch && matchesTurno && matchesDuracao && matchesTipo;
   });
+
+  // Paginação
+  const totalPages = Math.ceil(filteredCampanhas.length / itemsPerPage);
+  const paginatedCampanhas = filteredCampanhas.slice((page - 1) * itemsPerPage, page * itemsPerPage);
+
+  // Reset página ao mudar filtros
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, filterTurno, filterDuracao, filterTipo]);
 
   const clientStats = {
     total: campanhas.length,
@@ -373,8 +385,9 @@ const MinhasCampanhas = () => {
           </Typography>
         </Card>
       ) : (
+        <>
         <Grid container spacing={3}>
-          {filteredCampanhas.map((c) => {
+          {paginatedCampanhas.map((c) => {
             const hasVideo = c.midias && c.midias.length > 0 && c.midias[0].tipo === 'VIDEO';
             return (
               <Grid item xs={12} md={6} key={c.id} sx={{ display: 'flex' }}>
@@ -514,6 +527,21 @@ const MinhasCampanhas = () => {
             );
           })}
         </Grid>
+
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+            <Pagination 
+              count={totalPages} 
+              page={page} 
+              onChange={(e, value) => setPage(value)} 
+              color="primary"
+              size="large"
+              sx={{ '& .MuiPaginationItem-root': { borderRadius: 2 } }}
+            />
+          </Box>
+        )}
+        </>
       )}
     </Container>
   );

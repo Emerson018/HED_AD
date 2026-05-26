@@ -4,39 +4,39 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import FavoriteIcon from '@mui/icons-material/Favorite';
 import SmartVideoPlayer from './SmartVideoPlayer';
+import logoHed from '../assets/logo-hed.png';
 
-const CarouselLivePreview = ({ campanhas, turno }) => {
+const DICAS_SAUDE = [
+  "Beba pelo menos 2 litros de água por dia.",
+  "Lave as mãos com frequência para evitar infecções.",
+  "Mantenha seus exames de rotina em dia.",
+  "Pratique pelo menos 30 minutos de exercício físico diário.",
+  "Uma boa noite de sono melhora sua imunidade."
+];
+
+const CarouselLivePreview = ({ playlist = [], turno }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [playlist, setPlaylist] = useState([]);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [simulatedTime, setSimulatedTime] = useState(new Date());
+  const [dicaIndex, setDicaIndex] = useState(0);
 
   useEffect(() => {
-    // Filtra campanhas aprovadas para o turno selecionado
-    const filtered = campanhas.filter(c => 
-      (c.status === 'APROVADA' || c.status === 'ATIVA') && 
-      (c.turnos && c.turnos.includes(turno))
-    );
-    
-    // Separa comerciais de institucionais
-    const comerciais = filtered.filter(c => !c.is_institucional);
-    const institucionais = filtered.filter(c => c.is_institucional);
-    
-    const tempo_ocupado = comerciais.reduce((acc, curr) => acc + (curr.duracao || 0), 0);
-    const tempo_livre = Math.max(0, 300 - tempo_ocupado);
-    
-    const institucionais_selecionados = [];
-    let tempo_acumulado_institucional = 0;
-    for (const c of institucionais) {
-      if (tempo_acumulado_institucional + (c.duracao || 0) <= tempo_livre) {
-        institucionais_selecionados.push(c);
-        tempo_acumulado_institucional += (c.duracao || 0);
-      }
-    }
-    
-    setPlaylist([...comerciais, ...institucionais_selecionados]);
+    const clockInterval = setInterval(() => setSimulatedTime(new Date()), 1000);
+    const dicaInterval = setInterval(() => {
+      setDicaIndex((prev) => (prev + 1) % DICAS_SAUDE.length);
+    }, 10000);
+    return () => {
+      clearInterval(clockInterval);
+      clearInterval(dicaInterval);
+    };
+  }, []);
+
+  useEffect(() => {
     setCurrentIndex(0);
-  }, [campanhas, turno]);
+  }, [playlist]);
 
   const handleNext = () => {
     if (playlist.length === 0) return;
@@ -69,28 +69,83 @@ const CarouselLivePreview = ({ campanhas, turno }) => {
 
   return (
     <Paper elevation={4} sx={{ width: '100%', overflow: 'hidden', borderRadius: 4, bgcolor: '#000', position: 'relative' }}>
-      {/* Mini Player */}
+      {/* Mini Player com L-Bar */}
       <Box sx={{ position: 'relative', pt: '56.25%', bgcolor: '#000' }}>
-        <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {midia?.tipo === 'VIDEO' ? (
-            <SmartVideoPlayer 
-              key={midia.arquivo_url}
-              src={midia.arquivo_url} 
-              autoPlay 
-              muted 
-              playing={isPlaying}
-              style={{ width: '100%', height: '100%' }}
-              onEnded={handleNext}
-            />
-          ) : (
-            <img src={midia?.arquivo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          )}
-        </Box>
+        <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex' }}>
+          
+          {/* Área principal de mídia */}
+          <Box sx={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: '#000' }}>
+            {midia?.tipo === 'VIDEO' ? (
+              <SmartVideoPlayer 
+                key={midia.arquivo_url}
+                src={midia.arquivo_url} 
+                autoPlay 
+                muted 
+                playing={isPlaying}
+                style={{ width: '100%', height: '100%' }}
+                onEnded={handleNext}
+              />
+            ) : (
+              <img src={midia?.arquivo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            )}
 
-        {/* Overlay Info */}
-        <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2, background: 'linear-gradient(transparent, rgba(0,0,0,0.8))', color: '#fff' }}>
-          <Typography variant="subtitle2" fontWeight="bold">{currentCampanha.nome}</Typography>
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>{currentCampanha.parceiro_nome} • {currentCampanha.duracao}s</Typography>
+            {/* Overlay Info */}
+            <Box sx={{ position: 'absolute', bottom: 0, left: 0, right: 0, p: 2, background: 'linear-gradient(transparent, rgba(0,0,0,0.8))', color: '#fff' }}>
+              <Typography variant="subtitle2" fontWeight="bold">{currentCampanha.nome}</Typography>
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>{currentCampanha.parceiro_nome} • {currentCampanha.duracao}s</Typography>
+            </Box>
+          </Box>
+
+          {/* L-Bar Panel (máscara lateral) */}
+          <Box sx={{ 
+            width: '60px', 
+            bgcolor: '#003B67', 
+            color: '#d3d3d3', 
+            display: 'flex', 
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            borderLeft: '2px solid #068dbd',
+            py: 1.5,
+            px: 0.5,
+            boxSizing: 'border-box'
+          }}>
+            {/* Logo HED */}
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+              <Box 
+                component="img"
+                src={logoHed}
+                alt="Hospital"
+                sx={{ width: '80%', maxWidth: '40px', height: 'auto', objectFit: 'contain' }}
+              />
+            </Box>
+
+            {/* Relógio Simulado */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+              <AccessTimeIcon sx={{ fontSize: 16, color: '#068dbd', mb: 0.3 }} />
+              <Typography sx={{ color: '#fff', fontWeight: 'bold', fontSize: '0.65rem', lineHeight: 1 }}>
+                {simulatedTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Typography>
+            </Box>
+
+            {/* Dicas de Saúde */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', px: 0.3 }}>
+              <FavoriteIcon sx={{ color: '#068dbd', mb: 0.3, fontSize: 14 }} />
+              <Typography sx={{ 
+                fontWeight: 500, 
+                lineHeight: 1.2, 
+                fontSize: '0.5rem', 
+                color: '#d3d3d3',
+                display: '-webkit-box', 
+                WebkitLineClamp: 4, 
+                WebkitBoxOrient: 'vertical', 
+                overflow: 'hidden' 
+              }}>
+                {DICAS_SAUDE[dicaIndex]}
+              </Typography>
+            </Box>
+          </Box>
+
         </Box>
       </Box>
 

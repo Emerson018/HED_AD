@@ -39,7 +39,7 @@ class CampanhaSerializer(serializers.ModelSerializer):
             'id', 'parceiro', 'parceiro_nome', 'nome', 'status', 
             'duracao', 'turnos', 'categoria', 'total_exibicoes',
             'data_inicio', 'data_fim', 'midias', 'agendamentos', 
-            'dias_semana', 'is_institucional', 'criado_em', 'atualizado_em'
+            'dias_semana', 'is_institucional', 'tvs', 'criado_em', 'atualizado_em'
         ]
 
     def get_total_exibicoes(self, obj):

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { getTheme } from './theme';
 import Layout from './components/Layout';
@@ -8,11 +8,12 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminPreview from './pages/AdminPreview';
 import ParceiroDashboard from './pages/ParceiroDashboard';
-import ParceiroHome from './pages/ParceiroHome';
 import PlayerView from './pages/PlayerView';
-import Register from './pages/Register';
 import MinhasCampanhas from './pages/MinhasCampanhas';
 import SystemLogs from './pages/SystemLogs';
+import AdminCampanhaInstitucional from './pages/AdminCampanhaInstitucional';
+import AdminNovoUsuario from './pages/AdminNovoUsuario';
+import AdminOpcoes from './pages/AdminOpcoes';
 import TermosDeUso from './pages/TermosDeUso';
 import Faq from './pages/Faq';
 
@@ -34,7 +35,6 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           <Route path="/tv/player/:token" element={<PlayerView />} />
           <Route 
             path="/admin" 
@@ -61,18 +61,38 @@ function App() {
             } 
           />
           <Route 
-            path="/parceiro" 
+            path="/admin/institucional" 
             element={
-              <ProtectedRoute allowedRoles={['PARCEIRO']}>
-                <ParceiroHome />
+              <ProtectedRoute allowedRoles={['ADMIN_HED']}>
+                <AdminCampanhaInstitucional />
               </ProtectedRoute>
             } 
+          />
+          <Route 
+            path="/admin/opcoes" 
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN_HED']}>
+                <AdminOpcoes />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/novo-usuario" 
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN_HED']}>
+                <AdminNovoUsuario />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/parceiro" 
+            element={<Navigate to="/parceiro/campanhas" replace />} 
           />
           <Route 
             path="/parceiro/upload" 
             element={
               <ProtectedRoute allowedRoles={['PARCEIRO']}>
-                <ParceiroDashboard />
+                <ParceiroDashboard key="new" />
               </ProtectedRoute>
             } 
           />
@@ -80,7 +100,7 @@ function App() {
             path="/parceiro/editar/:id" 
             element={
               <ProtectedRoute allowedRoles={['PARCEIRO']}>
-                <ParceiroDashboard isEdit={true} />
+                <ParceiroDashboard isEdit={true} key="edit" />
               </ProtectedRoute>
             } 
           />
@@ -96,7 +116,7 @@ function App() {
             path="/admin/editar/:id" 
             element={
               <ProtectedRoute allowedRoles={['ADMIN_HED']}>
-                <ParceiroDashboard isEdit={true} isAdmin={true} />
+                <ParceiroDashboard isEdit={true} isAdmin={true} key="admin-edit" />
               </ProtectedRoute>
             } 
           />
