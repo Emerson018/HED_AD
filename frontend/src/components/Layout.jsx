@@ -257,10 +257,10 @@ const Layout = ({ children, toggleTheme, mode }) => {
             <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, justifyContent: 'space-between' }}>
               <Box>
                 <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ lineHeight: 1.2, letterSpacing: '0.02em' }}>
-                  HED AD
+                  HED Campanhas
                 </Typography>
                 <Typography variant="caption" noWrap sx={{ color: mutedText, fontSize: '0.65rem', lineHeight: 1 }}>
-                  Digital Signage
+                  Gestão de Campanhas
                 </Typography>
               </Box>
               <IconButton 

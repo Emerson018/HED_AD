@@ -58,6 +58,11 @@ import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import GridViewIcon from '@mui/icons-material/GridView';
 import Pagination from '@mui/material/Pagination';
+import SmartVideoPlayer from '../components/SmartVideoPlayer';
+import logoHed from '../assets/logo-hed.png';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
 
 const DIAS_NOMES = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
@@ -237,6 +242,8 @@ const AdminDashboard = () => {
   const [campanhas, setCampanhas] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCampanha, setSelectedCampanha] = useState(null);
+  const [showMediaPreview, setShowMediaPreview] = useState(false);
+  const [expandedMediaDialog, setExpandedMediaDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [campanhaToDelete, setCampanhaToDelete] = useState(null);
@@ -327,6 +334,10 @@ const AdminDashboard = () => {
       }
 
       return matchesSearch && matchesTurno && matchesDuracao && matchesTipo;
+    }).sort((a, b) => {
+      // Ordem: PENDENTES primeiro, depois EXPIRADOS, depois APROVADOS/ATIVOS
+      const statusOrder = { 'EM_ANALISE': 0, 'EXPIRADA': 1, 'APROVADA': 2, 'ATIVA': 2, 'PAUSADA': 3 };
+      return (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4);
     });
   }, [campanhas, searchTerm, filterTurno, filterDuracao, filterTipo]);
 
@@ -391,6 +402,7 @@ const AdminDashboard = () => {
     setDuracao(campanha.duracao || 15);
     setTurnos(campanha.turnos && campanha.turnos.length > 0 ? campanha.turnos : ['MANHA', 'TARDE', 'NOITE', 'MADRUGADA']);
     setDiasSemana(campanha.dias_semana && campanha.dias_semana.length > 0 ? campanha.dias_semana : [0, 1, 2, 3, 4, 5, 6]);
+    setShowMediaPreview(false);
     setModalOpen(true);
   }, []);
 
@@ -1301,6 +1313,70 @@ const AdminDashboard = () => {
                 <Typography variant="body2" color="primary">{selectedCampanha?.parceiro_nome}</Typography>
               </Box>
 
+              {/* Botão de Pré-visualização */}
+              {selectedCampanha?.midias && selectedCampanha.midias.length > 0 && (
+                <Box>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant={showMediaPreview ? "contained" : "outlined"}
+                      startIcon={<VisibilityIcon />}
+                      onClick={() => setShowMediaPreview(!showMediaPreview)}
+                      sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 'bold', flex: 1 }}
+                    >
+                      {showMediaPreview ? 'Ocultar Pré-visualização' : 'Ver Mídia'}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={() => setExpandedMediaDialog(true)}
+                      sx={{ borderRadius: 2, minWidth: 'auto', px: 1.5 }}
+                      title="Expandir em tela cheia"
+                    >
+                      <FullscreenIcon />
+                    </Button>
+                  </Box>
+
+                  {showMediaPreview && (
+                    <Box sx={{ mt: 2, borderRadius: 3, overflow: 'hidden', border: '4px solid #2d2d2d', bgcolor: '#000' }}>
+                      <Box sx={{ width: '100%', pt: '56.25%', position: 'relative', overflow: 'hidden' }}>
+                        <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex' }}>
+                          {/* Área de mídia */}
+                          <Box sx={{ flex: 9.2, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
+                            {selectedCampanha.midias[0].tipo === 'VIDEO' ? (
+                              <SmartVideoPlayer
+                                key={selectedCampanha.midias[0].arquivo_url}
+                                src={selectedCampanha.midias[0].arquivo_url}
+                                autoPlay
+                                muted
+                                playsInline
+                                showReplayButton={true}
+                              />
+                            ) : (
+                              <Box component="img" src={selectedCampanha.midias[0].arquivo_url} sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            )}
+                          </Box>
+                          {/* L-Bar (máscara) */}
+                          <Box sx={{ width: '50px', bgcolor: '#003B67', color: '#d3d3d3', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', borderLeft: '2px solid #068dbd', py: 1, px: 0.3 }}>
+                            <Box component="img" src={logoHed} alt="HED" sx={{ width: '85%', maxWidth: '30px', height: 'auto' }} />
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <AccessTimeIcon sx={{ fontSize: 12, color: '#068dbd', mb: 0.2 }} />
+                              <Typography sx={{ color: '#fff', fontWeight: 'bold', fontSize: '0.5rem' }}>
+                                {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                              <FavoriteIcon sx={{ color: '#068dbd', fontSize: 10 }} />
+                              <Typography sx={{ fontSize: '0.3rem', color: '#d3d3d3', lineHeight: 1.1 }}>
+                                Cuide da sua saúde
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              )}
+
               {/* Configuração de Turno */}
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={8}>
@@ -1403,6 +1479,53 @@ const AdminDashboard = () => {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      {/* Dialog de Mídia Expandida */}
+      <Dialog
+        open={expandedMediaDialog}
+        onClose={() => setExpandedMediaDialog(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: '#000', overflow: 'hidden' } }}
+      >
+        <DialogContent sx={{ p: 2 }}>
+          {selectedCampanha?.midias && selectedCampanha.midias.length > 0 && (
+            <Box sx={{ width: '100%', pt: '56.25%', position: 'relative', overflow: 'hidden', borderRadius: 1 }}>
+              <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex' }}>
+                <Box sx={{ flex: 9.2, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
+                  {selectedCampanha.midias[0].tipo === 'VIDEO' ? (
+                    <SmartVideoPlayer
+                      key={`expanded-${selectedCampanha.midias[0].arquivo_url}`}
+                      src={selectedCampanha.midias[0].arquivo_url}
+                      autoPlay
+                      muted
+                      playsInline
+                      showReplayButton={true}
+                    />
+                  ) : (
+                    <Box component="img" src={selectedCampanha.midias[0].arquivo_url} sx={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  )}
+                </Box>
+                <Box sx={{ width: '60px', bgcolor: '#003B67', color: '#d3d3d3', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'center', borderLeft: '2px solid #068dbd', py: 1.5, px: 0.5 }}>
+                  <Box component="img" src={logoHed} alt="HED" sx={{ width: '80%', maxWidth: '40px', height: 'auto' }} />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <AccessTimeIcon sx={{ fontSize: 16, color: '#068dbd', mb: 0.3 }} />
+                    <Typography sx={{ color: '#fff', fontWeight: 'bold', fontSize: '0.7rem' }}>
+                      {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                    <FavoriteIcon sx={{ color: '#068dbd', fontSize: 14, mb: 0.3 }} />
+                    <Typography sx={{ fontSize: '0.5rem', color: '#d3d3d3', lineHeight: 1.2 }}>
+                      Cuide da sua saúde
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}

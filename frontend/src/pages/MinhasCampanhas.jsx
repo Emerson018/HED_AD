@@ -185,6 +185,10 @@ const MinhasCampanhas = () => {
     }
 
     return matchesSearch && matchesTurno && matchesDuracao && matchesTipo;
+  }).sort((a, b) => {
+    // Ordem: PENDENTES primeiro, depois EXPIRADOS, depois APROVADOS/ATIVOS
+    const statusOrder = { 'EM_ANALISE': 0, 'EXPIRADA': 1, 'APROVADA': 2, 'ATIVA': 2, 'PAUSADA': 3 };
+    return (statusOrder[a.status] ?? 4) - (statusOrder[b.status] ?? 4);
   });
 
   // Paginação

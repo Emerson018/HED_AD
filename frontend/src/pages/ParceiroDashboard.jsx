@@ -580,12 +580,14 @@ const ParceiroDashboard = ({ isEdit = false, isAdmin = false }) => {
                       </Link>
                     </Box>
                   ) : null}
-                  <Box sx={{ mt: 2, p: 1.5, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                    <AccessTimeIcon color="primary" />
-                    <Typography variant="body2" fontWeight="bold">
-                      Duração da campanha: {duracao} {duracao === 1 ? 'segundo' : 'segundos'}
-                    </Typography>
-                  </Box>
+                  {(file || existingMediaUrl) && (
+                    <Box sx={{ mt: 2, p: 1.5, borderRadius: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
+                      <AccessTimeIcon color="primary" />
+                      <Typography variant="body2" fontWeight="bold">
+                        Duração da campanha: {duracao} {duracao === 1 ? 'segundo' : 'segundos'}
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
 
                 <Button 

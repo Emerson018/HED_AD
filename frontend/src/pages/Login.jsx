@@ -157,7 +157,7 @@ const Login = () => {
           >
             <Box sx={{ textAlign: 'center', mb: 4.5 }}>
               <Typography component="h1" variant="h4" fontWeight="bold" color="primary" sx={{ letterSpacing: 0.5, mb: 1 }}>
-                HED Signage
+                HED Campanhas
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
                 Acesse o painel de veiculação

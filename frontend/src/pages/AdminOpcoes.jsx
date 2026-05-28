@@ -26,7 +26,7 @@ const AdminOpcoes = () => {
     },
     {
       title: 'Termos de Uso',
-      description: 'Termos e condições de uso da plataforma HED AD.',
+      description: 'Termos e condições de uso da plataforma HED Campanhas.',
       icon: <GavelIcon sx={{ fontSize: 40 }} />,
       path: '/termos',
       color: '#8b5cf6',

@@ -166,7 +166,7 @@ const SystemLogs = () => {
           <HistoryIcon fontSize="large" /> Logs do Sistema
         </Typography>
         <Typography variant="subtitle1" color="textSecondary">
-          Auditoria completa das atividades, operações de campanhas e tentativas de autenticação do painel de Digital Signage.
+          Auditoria completa das atividades, operações de campanhas e tentativas de autenticação do painel de Gestão de Campanhas.
         </Typography>
       </Box>
 

@@ -235,6 +235,7 @@ class AgendamentoViewSet(viewsets.ModelViewSet):
 
 class TVPlaylistView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = []  # Sem rate limiting - TVs fazem polling constante
 
     def get(self, request):
         # Validação do token do monitor (Device Token)
@@ -328,6 +329,7 @@ class TVPlaylistView(APIView):
 
 class PlayerLogView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = []  # Sem rate limiting - TVs enviam logs constantemente
 
     def post(self, request):
         campanha_id = request.data.get('campanha_id')

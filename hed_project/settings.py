@@ -172,8 +172,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.ScopedRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',        # Usuários não autenticados: 100 req/hora
-        'user': '1000/hour',       # Usuários autenticados: 1000 req/hora
+        'anon': '500/hour',        # Usuários não autenticados: 500 req/hora
+        'user': '2000/hour',       # Usuários autenticados: 2000 req/hora
         'login': '10/minute',      # Login (JWT): 10 tentativas/minuto (anti brute-force)
         'register': '5/minute',    # Registro: 5 tentativas/minuto (anti spam)
     },

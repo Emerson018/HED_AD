@@ -1,11 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import api from '../utils/api';
+import axios from 'axios';
 import { Box, Typography, CircularProgress, LinearProgress } from '@mui/material';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import logoHed from '../assets/logo-hed.png';
 import SmartVideoPlayer from '../components/SmartVideoPlayer';
+
+// API sem autenticação para o player da TV (AllowAny no backend)
+const playerApi = axios.create({
+  baseURL: 'http://127.0.0.1:8000/api/',
+});
 
 const DICAS_SAUDE = [
   "Beba pelo menos 2 litros de água por dia.",
@@ -18,18 +23,25 @@ const DICAS_SAUDE = [
 const PlayerView = () => {
   const { token } = useParams();
   const [searchParams] = useSearchParams();
-  const isClean = false; // Forçado em produção: sempre manter o player institucional com a máscara
-  const fitMode = searchParams.get('fit') || 'cover';
 
   const [playlist, setPlaylist] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [cycleCount, setCycleCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isReady, setIsReady] = useState(false);
   const [cachingProgress, setCachingProgress] = useState(0);
-  const [videoProgress, setVideoProgress] = useState(0);
 
-  // Efeito para simular o progresso do loading de 1.5s
+  // Widgets
+  const [time, setTime] = useState(new Date());
+  const [dicaIndex, setDicaIndex] = useState(0);
+
+  // Refs para polling
+  const playlistRef = useRef(playlist);
+  const currentIndexRef = useRef(currentIndex);
+
+  useEffect(() => { playlistRef.current = playlist; }, [playlist]);
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+
+  // Loading animation (1.5s)
   useEffect(() => {
     if (playlist.length > 0 && !isReady) {
       setCachingProgress(0);
@@ -42,165 +54,121 @@ const PlayerView = () => {
           }
           return prev + 2;
         });
-      }, 30); // 30ms * 50 passos = 1.5 segundos
+      }, 30);
       return () => clearInterval(timer);
     }
   }, [playlist.length, isReady]);
-  
-  // Widgets State
-  const [time, setTime] = useState(new Date());
-  const [dicaIndex, setDicaIndex] = useState(0);
 
-
-  // Widget: Clock & Dicas
+  // Clock & Dicas
   useEffect(() => {
     const clockInterval = setInterval(() => setTime(new Date()), 1000);
     const dicaInterval = setInterval(() => {
       setDicaIndex((prev) => (prev + 1) % DICAS_SAUDE.length);
-    }, 15000); // Troca de dica a cada 15 segundos
-
+    }, 15000);
     return () => {
       clearInterval(clockInterval);
       clearInterval(dicaInterval);
     };
   }, []);
 
-  const playlistRef = useRef(playlist);
-  const currentIndexRef = useRef(currentIndex);
-
-  useEffect(() => {
-    playlistRef.current = playlist;
-  }, [playlist]);
-
-  useEffect(() => {
-    currentIndexRef.current = currentIndex;
-  }, [currentIndex]);
-
+  // Fetch playlist (mesma lógica da API)
   const fetchPlaylist = async (silent = false) => {
     try {
       const forcedTurno = searchParams.get('turno');
-      let playlistUrl = `tv/playlist/?tv=${token}`;
-      if (forcedTurno) {
-        playlistUrl += `&turno=${forcedTurno}`;
-      }
-      const res = await api.get(playlistUrl);
-      const newCampanhas = res.data;
-      
-      if (newCampanhas.length === 0) {
+      let url = `tv/playlist/?tv=${token}`;
+      if (forcedTurno) url += `&turno=${forcedTurno}`;
+
+      const res = await playerApi.get(url);
+      const data = res.data;
+
+      // Filtra campanhas sem mídia
+      const validas = data.filter(c => c.midias && c.midias.length > 0 && c.midias[0].arquivo_url);
+
+      if (validas.length === 0) {
         setPlaylist([]);
         return;
       }
 
       const oldIds = playlistRef.current.map(c => c.id).join(',');
-      const newIds = newCampanhas.map(c => c.id).join(',');
+      const newIds = validas.map(c => c.id).join(',');
 
-      // Se houver alteração ou for a primeira carga
       if (oldIds !== newIds) {
-        console.log("Grade de exibição atualizada!");
-        if (!silent) {
-          setIsReady(false);
-        }
-        setPlaylist(newCampanhas);
-        
-        if (playlistRef.current.length === 0 || currentIndexRef.current >= newCampanhas.length) {
+        if (!silent) setIsReady(false);
+        setPlaylist(validas);
+        if (playlistRef.current.length === 0 || currentIndexRef.current >= validas.length) {
           setCurrentIndex(0);
         }
       }
-
     } catch (error) {
       console.error("Erro ao buscar playlist", error);
-      if (!silent) {
-        setTimeout(() => fetchPlaylist(false), 10000);
-      }
+      if (!silent) setTimeout(() => fetchPlaylist(false), 10000);
     } finally {
       setLoading(false);
     }
   };
 
-  // Primeira busca ao carregar a tela
-  useEffect(() => {
-    fetchPlaylist(false);
-  }, [token]);
+  // Primeira busca
+  useEffect(() => { fetchPlaylist(false); }, [token]);
 
-  // Polling silencioso caso o carrossel esteja vazio
+  // Polling quando vazio (15s)
   useEffect(() => {
-    if (playlist.length === 0) {
-      const interval = setInterval(() => {
-        fetchPlaylist(true);
-      }, 10000);
+    if (playlist.length === 0 && !loading) {
+      const interval = setInterval(() => fetchPlaylist(true), 15000);
+      return () => clearInterval(interval);
+    }
+  }, [playlist.length, loading]);
+
+  // Polling quando rodando (60s)
+  useEffect(() => {
+    if (playlist.length > 0) {
+      const interval = setInterval(() => fetchPlaylist(true), 60000);
       return () => clearInterval(interval);
     }
   }, [playlist.length]);
 
-  const handleNext = async () => {
-    const currentPlaylist = playlistRef.current;
-    const currIndex = currentIndexRef.current;
+  // Avançar para próxima campanha (mesma lógica do CarouselLivePreview)
+  const handleNext = () => {
+    if (playlist.length === 0) return;
 
-    if (currentPlaylist.length === 0) return;
-    const campanhaAtual = currentPlaylist[currIndex];
-    
-    // Proof of Play: Log de exibição
-    try {
-      await api.post('player/log/', { 
-        campanha_id: campanhaAtual.id 
-      });
-      console.log("Log de exibição gravado para:", campanhaAtual.nome);
-    } catch (err) {
-      console.error("Falha ao gravar log", err);
-    }
+    // Log de exibição
+    const campanha = playlist[currentIndex];
+    playerApi.post('player/log/', { campanha_id: campanha.id }).catch(() => {});
 
-    // Se terminamos a volta do carrossel (ciclo completo), fazemos fetch silencioso
-    if (currIndex === currentPlaylist.length - 1) {
-      console.log("Ciclo completo do carrossel! Atualizando playlist em background...");
+    // Atualiza playlist no fim do ciclo
+    if (currentIndex === playlist.length - 1) {
       fetchPlaylist(true);
     }
 
-    setCycleCount((prev) => prev + 1);
-    setVideoProgress(0); // Reseta progresso ao trocar de vídeo
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % currentPlaylist.length);
+    setCurrentIndex((prev) => (prev + 1) % playlist.length);
   };
 
-  // Efeito para tratar imagens (fallback de tempo)
+  // Fallback de tempo para imagens (mesma lógica do CarouselLivePreview)
   useEffect(() => {
-    if (playlist.length === 0 || loading) return;
-    
-    const currentMidia = playlist[currentIndex].midias?.[0];
-    if (currentMidia && currentMidia.tipo === 'IMAGEM') {
-      const duracao = playlist[currentIndex].duracao || 15;
-      const timer = setTimeout(handleNext, duracao * 1000);
+    if (playlist.length === 0 || !isReady) return;
+
+    const current = playlist[currentIndex];
+    const midia = current.midias?.[0];
+
+    if (midia && midia.tipo === 'IMAGEM') {
+      const timer = setTimeout(handleNext, (current.duracao || 15) * 1000);
       return () => clearTimeout(timer);
     }
-  }, [currentIndex, playlist, loading]);
+  }, [currentIndex, playlist, isReady]);
 
+  // === TELAS DE ESTADO ===
+
+  // Loading inicial
   if (loading || (!isReady && playlist.length > 0)) {
     return (
-      <Box sx={{ 
-        width: '100vw', 
-        height: '100vh', 
-        bgcolor: '#000', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        color: '#fff',
-        gap: 3
-      }}>
+      <Box sx={{ width: '100vw', height: '100vh', bgcolor: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#fff', gap: 3 }}>
         <CircularProgress color="primary" />
         <Box sx={{ width: '320px', textAlign: 'center' }}>
-          <LinearProgress 
-            variant="determinate" 
-            value={cachingProgress} 
-            sx={{ 
-              height: 8, 
-              borderRadius: 4, 
-              bgcolor: 'rgba(255, 255, 255, 0.1)',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 4,
-                bgcolor: 'primary.main'
-              }
-            }} 
+          <LinearProgress
+            variant="determinate"
+            value={cachingProgress}
+            sx={{ height: 8, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.1)', '& .MuiLinearProgress-bar': { borderRadius: 4, bgcolor: 'primary.main' } }}
           />
-          <Typography variant="body2" sx={{ mt: 1.5, color: 'rgba(255, 255, 255, 0.5)' }}>
+          <Typography variant="body2" sx={{ mt: 1.5, color: 'rgba(255,255,255,0.5)' }}>
             Pré-carregando mídias... {cachingProgress}%
           </Typography>
         </Box>
@@ -208,186 +176,93 @@ const PlayerView = () => {
     );
   }
 
+  // Playlist vazia
   if (playlist.length === 0) {
     return (
-      <Box sx={{ 
-        width: '100vw', 
-        height: '100vh', 
-        bgcolor: '#000', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        color: '#fff',
-        gap: 3
-      }}>
+      <Box sx={{ width: '100vw', height: '100vh', bgcolor: '#000', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#fff', gap: 3 }}>
         <Typography variant="h4" fontWeight="bold">Aguardando Campanhas...</Typography>
         <Box sx={{ width: '320px', textAlign: 'center' }}>
-          <LinearProgress 
-            variant="indeterminate" 
-            sx={{ 
-              height: 8, 
-              borderRadius: 4, 
-              bgcolor: 'rgba(255, 255, 255, 0.1)',
-              '& .MuiLinearProgress-bar': {
-                borderRadius: 4,
-                bgcolor: 'primary.main'
-              }
-            }} 
+          <LinearProgress
+            variant="indeterminate"
+            sx={{ height: 8, borderRadius: 4, bgcolor: 'rgba(255,255,255,0.1)', '& .MuiLinearProgress-bar': { borderRadius: 4, bgcolor: 'primary.main' } }}
           />
-          <Typography variant="body2" sx={{ mt: 1.5, color: 'rgba(255, 255, 255, 0.5)' }}>
-            Verificando novos envios no servidor...
+          <Typography variant="body2" sx={{ mt: 1.5, color: 'rgba(255,255,255,0.5)' }}>
+            Nenhuma campanha aprovada para este turno. Verificando a cada 15s...
+          </Typography>
+          <Typography variant="caption" sx={{ mt: 1, color: 'rgba(255,255,255,0.3)', display: 'block' }}>
+            TV: {token}
           </Typography>
         </Box>
       </Box>
     );
   }
 
-  const isEven = currentIndex % 2 === 0;
-
-  // Determina as campanhas de cada slot
-  // Slot 1 cuida dos índices pares como ativo, e ímpares como background
-  // Slot 2 cuida dos índices ímpares como ativo, e pares como background
-  const slot1Campanha = isEven ? playlist[currentIndex] : playlist[(currentIndex + 1) % playlist.length];
-  const slot2Campanha = isEven ? playlist[(currentIndex + 1) % playlist.length] : playlist[currentIndex];
-
-  const renderSlot = (campanha, isActive) => {
-    if (!campanha) return null;
-    const midia = campanha.midias?.[0];
-    const isVideo = midia?.tipo === 'VIDEO';
-    
-    // Se a playlist tem apenas 1 item, usamos o cycleCount para forçar o reinício do vídeo
-    const playerKey = playlist.length === 1 
-      ? `${midia?.arquivo_url}-${cycleCount}` 
-      : midia?.arquivo_url;
-
-    return (
-      <Box 
-        sx={{ 
-          position: 'absolute', 
-          top: 0, 
-          left: 0, 
-          width: '100%', 
-          height: '100%', 
-          opacity: isActive ? 1 : 0, 
-          pointerEvents: isActive ? 'auto' : 'none',
-          zIndex: isActive ? 2 : 1,
-          transition: 'opacity 0.5s ease-in-out' // Transição crossfade suave de meio segundo
-        }}
-      >
-        {isVideo ? (
-          <SmartVideoPlayer 
-            key={playerKey}
-            src={midia?.arquivo_url}
-            autoPlay={isActive}
-            playing={isActive}
-            muted
-            playsInline
-            onEnded={isActive ? handleNext : undefined}
-            onTimeUpdate={isActive ? (currentTime, duration) => {
-              if (duration > 0) {
-                setVideoProgress((currentTime / duration) * 100);
-              }
-            } : undefined}
-            disableBackground={false}
-            style={{ width: '100%', height: '100%' }}
-          />
-        ) : (
-          <img 
-            src={midia?.arquivo_url} 
-            alt={campanha.nome}
-            style={{ width: '100%', height: '100%', objectFit: fitMode }} 
-          />
-        )}
-      </Box>
-    );
-  };
+  // === PLAYER PRINCIPAL (mesma lógica do CarouselLivePreview) ===
+  const currentCampanha = playlist[currentIndex];
+  const midia = currentCampanha.midias?.[0];
 
   return (
     <Box sx={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', bgcolor: '#000' }}>
-      
-      {/* Preload nativo em background usando cache HTTP do navegador */}
-      <Box sx={{ display: 'none', width: 0, height: 0 }} aria-hidden="true">
-        {playlist.map((c) => (
-          c.midias?.[0]?.tipo === 'VIDEO' && (
-            <video
-              key={`preload-${c.id}`}
-              src={c.midias[0].arquivo_url}
-              preload="auto"
-              muted
-            />
-          )
-        ))}
+
+      {/* ÁREA PRINCIPAL DE MÍDIA */}
+      <Box sx={{ flex: 1, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
+        {midia?.tipo === 'VIDEO' ? (
+          <SmartVideoPlayer
+            key={midia.arquivo_url}
+            src={midia.arquivo_url}
+            autoPlay
+            muted
+            playsInline
+            playing={true}
+            onEnded={handleNext}
+            style={{ width: '100%', height: '100%' }}
+          />
+        ) : (
+          <img
+            src={midia?.arquivo_url}
+            alt={currentCampanha.nome}
+            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          />
+        )}
       </Box>
 
-      {/* ÁREA PRINCIPAL (92% ou 100%) */}
-      <Box sx={{ flex: isClean ? 10 : 9.2, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#000' }}>
-        {renderSlot(slot1Campanha, isEven)}
-        {renderSlot(slot2Campanha, !isEven)}
-      </Box>
-
-      {/* L-BAR (8% - Simbólico) */}
-      {!isClean && (
-        <Box sx={{ 
-          flex: 0.8, 
-          bgcolor: '#003B67', 
-          color: '#d3d3d3', 
-          display: 'flex', 
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          borderLeft: '3px solid #068dbd',
-          p: 1.5,
-          boxSizing: 'border-box',
-          position: 'relative',
-          overflow: 'hidden',
-        }}>
-          
-          {/* Barra de progresso vertical do vídeo atual */}
-          <Box sx={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            width: '3px',
-            height: `${videoProgress}%`,
-            bgcolor: '#068dbd',
-            opacity: 0.7,
-            transition: 'height 0.3s linear',
-            borderRadius: '0 0 2px 2px',
-            zIndex: 2,
-          }} />
-
-          {/* Logo HED */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', pt: 1, width: '100%' }}>
-            <Box 
-              component="img"
-              src={logoHed}
-              alt="Hospital Ernesto Dornelles"
-              sx={{ width: '100%', maxWidth: '110px', height: 'auto', objectFit: 'contain' }}
-            />
-          </Box>
-
-          {/* Widget: Relógio */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', my: 2 }}>
-            <AccessTimeIcon sx={{ fontSize: 24, color: '#068dbd', mb: 0.5 }} />
-            <Typography sx={{ color: '#fff', fontWeight: 'bold', fontSize: '1.4rem', lineHeight: 1 }}>
-              {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Typography>
-            <Typography sx={{ color: '#d3d3d3', fontSize: '0.7rem', opacity: 0.8, mt: 0.5 }}>
-              {time.toLocaleDateString([], { day: '2-digit', month: '2-digit' })}
-            </Typography>
-          </Box>
-
-          {/* Widget: Dicas de Saúde */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pb: 1, textAlign: 'center', width: '100%' }}>
-            <FavoriteIcon sx={{ color: '#068dbd', mb: 0.5, fontSize: 20 }} />
-            <Typography sx={{ fontWeight: 500, lineHeight: 1.3, fontSize: '0.7rem' }}>
-              {DICAS_SAUDE[dicaIndex]}
-            </Typography>
-          </Box>
-
+      {/* L-BAR LATERAL */}
+      <Box sx={{
+        width: '80px',
+        bgcolor: '#003B67',
+        color: '#d3d3d3',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderLeft: '3px solid #068dbd',
+        py: 2,
+        px: 0.5,
+      }}>
+        {/* Logo */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+          <Box component="img" src={logoHed} alt="HED" sx={{ width: '90%', maxWidth: '60px', height: 'auto' }} />
         </Box>
-      )}
+
+        {/* Relógio */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <AccessTimeIcon sx={{ fontSize: 22, color: '#068dbd', mb: 0.5 }} />
+          <Typography sx={{ color: '#fff', fontWeight: 'bold', fontSize: '1.1rem', lineHeight: 1 }}>
+            {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Typography>
+          <Typography sx={{ color: '#d3d3d3', fontSize: '0.6rem', opacity: 0.8, mt: 0.3 }}>
+            {time.toLocaleDateString([], { day: '2-digit', month: '2-digit' })}
+          </Typography>
+        </Box>
+
+        {/* Dicas de Saúde */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', width: '100%', px: 0.3 }}>
+          <FavoriteIcon sx={{ color: '#068dbd', mb: 0.5, fontSize: 18 }} />
+          <Typography sx={{ fontWeight: 500, lineHeight: 1.3, fontSize: '0.55rem', color: '#d3d3d3' }}>
+            {DICAS_SAUDE[dicaIndex]}
+          </Typography>
+        </Box>
+      </Box>
     </Box>
   );
 };

@@ -48,7 +48,7 @@ const TermosDeUso = () => {
               1. Aceitação dos Termos
             </Typography>
             <Typography variant="body1" align="justify" sx={{ lineHeight: 1.7 }}>
-              Ao acessar e utilizar a plataforma HED AD, você concorda em cumprir e estar vinculado a estes Termos de Uso. Este documento constitui um acordo legal entre você (seja como pessoa física ou em representação de uma pessoa jurídica) e a nossa plataforma. Se você não concorda com qualquer parte destes termos, você deve cessar imediatamente o uso de nossos serviços.
+              Ao acessar e utilizar a plataforma HED Campanhas, você concorda em cumprir e estar vinculado a estes Termos de Uso. Este documento constitui um acordo legal entre você (seja como pessoa física ou em representação de uma pessoa jurídica) e a nossa plataforma. Se você não concorda com qualquer parte destes termos, você deve cessar imediatamente o uso de nossos serviços.
             </Typography>
           </Box>
 
@@ -75,7 +75,7 @@ const TermosDeUso = () => {
               4. Limitação de Responsabilidade
             </Typography>
             <Typography variant="body1" align="justify" sx={{ lineHeight: 1.7 }}>
-              Embora busquemos manter o sistema online e os equipamentos de exibição em perfeitas condições operacionais 24 horas por dia, a HED AD não se responsabiliza por interrupções temporárias de serviço causadas por falhas técnicas de rede local, manutenção preventiva ou fatores de força maior. Nesses cenários, os créditos de exibição afetados serão compensados proporcionalmente.
+              Embora busquemos manter o sistema online e os equipamentos de exibição em perfeitas condições operacionais 24 horas por dia, a HED Campanhas não se responsabiliza por interrupções temporárias de serviço causadas por falhas técnicas de rede local, manutenção preventiva ou fatores de força maior. Nesses cenários, os créditos de exibição afetados serão compensados proporcionalmente.
             </Typography>
           </Box>
 
