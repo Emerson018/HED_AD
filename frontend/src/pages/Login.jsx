@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { 
@@ -250,6 +250,26 @@ const Login = () => {
               >
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Entrar no Sistema'}
               </Button>
+
+              <Box sx={{ textAlign: 'center' }}>
+                <Link
+                  to="/esqueci-senha"
+                  style={{ textDecoration: 'none' }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="primary"
+                    sx={{
+                      fontWeight: 500,
+                      '&:hover': {
+                        textDecoration: 'underline',
+                      },
+                    }}
+                  >
+                    Esqueci minha senha
+                  </Typography>
+                </Link>
+              </Box>
               
             </Box>
           </Paper>

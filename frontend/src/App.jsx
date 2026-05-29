@@ -5,6 +5,8 @@ import { getTheme } from './theme';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
+import EsqueciSenha from './pages/EsqueciSenha';
+import RedefinirSenha from './pages/RedefinirSenha';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminPreview from './pages/AdminPreview';
 import ParceiroDashboard from './pages/ParceiroDashboard';
@@ -35,6 +37,8 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/esqueci-senha" element={<EsqueciSenha />} />
+          <Route path="/redefinir-senha/:token" element={<RedefinirSenha />} />
           <Route path="/tv/player/:token" element={<PlayerView />} />
           <Route 
             path="/admin" 

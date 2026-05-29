@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.views import APIView
@@ -6,6 +8,8 @@ from django.contrib.auth import get_user_model
 from rest_framework.throttling import ScopedRateThrottle
 from .models import Parceiro, Campanha, Midia, Agendamento, CampanhaLog, AuditoriaLog
 import datetime
+
+logger = logging.getLogger(__name__)
 from .serializers import (
     UsuarioSerializer, 
     ParceiroSerializer, 
@@ -432,7 +436,32 @@ class RegisterView(APIView):
                 descricao=f"Novo parceiro cadastrado: '{parceiro.nome_empresa}' (ID Usuário: {user.id})."
             )
 
-            return Response({"message": "Usuário criado com sucesso!"}, status=status.HTTP_201_CREATED)
+            # 3. Enviar e-mail de credenciais (em background para não bloquear a resposta)
+            import threading
+
+            def _send_email_background(user_obj, pwd):
+                try:
+                    from signage.services.email_service import EmailService
+                    svc = EmailService()
+                    svc.send_credentials_email(user_obj, pwd)
+                except Exception as exc:
+                    logger.error(
+                        "Erro ao enviar credenciais em background para %s: %s",
+                        user_obj.email,
+                        str(exc),
+                    )
+
+            email_thread = threading.Thread(
+                target=_send_email_background,
+                args=(user, password),
+                daemon=True,
+            )
+            email_thread.start()
+
+            return Response(
+                {"message": "Usuário criado com sucesso!", "email_sent": True},
+                status=status.HTTP_201_CREATED,
+            )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -483,3 +512,98 @@ class AuditoriaLogViewSet(viewsets.ReadOnlyModelViewSet):
         if user.is_superuser or (hasattr(user, 'tipo_usuario') and user.tipo_usuario == 'ADMIN_HED'):
             return AuditoriaLog.objects.all().order_by('-criado_em')
         return AuditoriaLog.objects.none()
+
+
+class ResendCredentialsView(APIView):
+    """
+    POST /api/resend-credentials/<user_id>/
+
+    Reenvia o e-mail de credenciais para um usuário existente.
+    Apenas ADMIN_HED pode executar esta ação.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, user_id):
+        # Verificar se é admin
+        if not (request.user.is_superuser or (
+            hasattr(request.user, 'tipo_usuario') and request.user.tipo_usuario == 'ADMIN_HED'
+        )):
+            return Response(
+                {"error": "Apenas administradores podem reenviar credenciais."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Buscar o usuário alvo
+        try:
+            target_user = Usuario.objects.get(id=user_id)
+        except Usuario.DoesNotExist:
+            return Response(
+                {"error": "Usuário não encontrado."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Enviar e-mail em background para não bloquear a resposta
+        from signage.services.email_service import EmailService
+        from signage.services.token_manager import TokenManager
+        import threading
+
+        try:
+            email_service = EmailService()
+
+            # Se configuração está incompleta em DEBUG, retornar imediatamente
+            if email_service._skip_sending:
+                return Response(
+                    {
+                        "message": "E-mail não enviado (configuração incompleta no modo DEBUG).",
+                        "email_sent": False,
+                        "reason": "config_missing",
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            token_manager = TokenManager()
+            token_str = token_manager.generate_token(target_user)
+
+            def _resend_background(svc, user_obj, token, admin_user):
+                try:
+                    success = svc.send_reset_email(user_obj, token)
+                    if success:
+                        AuditoriaLog.objects.create(
+                            usuario=admin_user,
+                            usuario_str=admin_user.username,
+                            acao='EMAIL_CREDENCIAIS',
+                            descricao=(
+                                f"Reenvio de e-mail de acesso para '{user_obj.username}' "
+                                f"({user_obj.email}) solicitado por '{admin_user.username}'."
+                            ),
+                        )
+                    else:
+                        AuditoriaLog.objects.create(
+                            usuario=admin_user,
+                            usuario_str=admin_user.username,
+                            acao='EMAIL_CREDENCIAIS_FALHA',
+                            descricao=(
+                                f"Falha ao reenviar e-mail de acesso para '{user_obj.username}' "
+                                f"({user_obj.email})."
+                            ),
+                        )
+                except Exception as exc:
+                    logger.error("Erro ao reenviar credenciais em background: %s", str(exc))
+
+            email_thread = threading.Thread(
+                target=_resend_background,
+                args=(email_service, target_user, token_str, request.user),
+                daemon=True,
+            )
+            email_thread.start()
+
+            return Response(
+                {"message": "E-mail sendo enviado.", "email_sent": True},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            logger.error("Erro ao reenviar credenciais para %s: %s", target_user.email, str(e))
+            return Response(
+                {"error": "Erro interno ao enviar e-mail."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

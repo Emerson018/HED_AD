@@ -15,10 +15,11 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 
-load_dotenv()
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Carrega o .env explicitamente da raiz do projeto
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -169,13 +170,13 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_CLASSES': (
         'rest_framework.throttling.AnonRateThrottle',
         'rest_framework.throttling.UserRateThrottle',
-        'rest_framework.throttling.ScopedRateThrottle',
     ),
     'DEFAULT_THROTTLE_RATES': {
         'anon': '500/hour',        # Usuários não autenticados: 500 req/hora
         'user': '2000/hour',       # Usuários autenticados: 2000 req/hora
         'login': '10/minute',      # Login (JWT): 10 tentativas/minuto (anti brute-force)
         'register': '5/minute',    # Registro: 5 tentativas/minuto (anti spam)
+        'password_reset': '10/hour',  # Password reset: 10 tentativas/hora (anti abuso)
     },
     # Desabilita o browsable API em produção
     'DEFAULT_RENDERER_CLASSES': (
@@ -268,3 +269,13 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ==============================================================================
+# EMAIL SERVICE CONFIGURATION
+# ==============================================================================
+
+EMAIL_API_KEY = os.environ.get('EMAIL_API_KEY', '')
+EMAIL_FROM_ADDRESS = os.environ.get('EMAIL_FROM_ADDRESS', '')
+EMAIL_PROVIDER = os.environ.get('EMAIL_PROVIDER', 'resend')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')

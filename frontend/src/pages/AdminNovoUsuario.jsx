@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
+import { generatePassword } from '../utils/passwordGenerator';
 import { 
   Box, 
   Button, 
@@ -28,6 +29,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import AutorenewIcon from '@mui/icons-material/Autorenew';
 
 const formatCNPJ = (value) => {
   const cleanValue = value.replace(/\D/g, '').slice(0, 14);
@@ -73,6 +75,13 @@ const AdminNovoUsuario = () => {
   const handleTogglePassword = () => setShowPassword(!showPassword);
   const handleCloseSnackbar = () => setSnackbar({ ...snackbar, open: false });
 
+  const handleGeneratePassword = () => {
+    const newPassword = generatePassword();
+    setFormData({ ...formData, password: newPassword });
+    setShowPassword(true);
+    if (errors.password) setErrors(prev => ({ ...prev, password: null }));
+  };
+
   const handleChange = (e) => {
     let value = e.target.value;
     if (e.target.name === 'cnpj') value = formatCNPJ(value);
@@ -117,8 +126,15 @@ const AdminNovoUsuario = () => {
 
     setLoading(true);
     try {
-      await api.post('register/', formData);
-      setSnackbar({ open: true, message: 'Usuário criado com sucesso!', severity: 'success' });
+      const response = await api.post('register/', formData);
+      const emailSent = response.data?.email_sent;
+      if (emailSent === true) {
+        setSnackbar({ open: true, message: 'Usuário criado! E-mail de credenciais enviado.', severity: 'success' });
+      } else if (emailSent === false) {
+        setSnackbar({ open: true, message: 'Usuário criado! Falha ao enviar e-mail de credenciais.', severity: 'warning' });
+      } else {
+        setSnackbar({ open: true, message: 'Usuário criado com sucesso!', severity: 'success' });
+      }
       setFormData({ username: '', password: '', email: '', nome_empresa: '', cnpj: '', telefone: '' });
       setErrors({});
     } catch (err) {
@@ -180,27 +196,37 @@ const AdminNovoUsuario = () => {
                 />
               </Box>
 
-              <TextField
-                fullWidth
-                label="Senha"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={formData.password}
-                onChange={handleChange}
-                error={!!errors.password}
-                helperText={errors.password}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start"><LockIcon color="action" /></InputAdornment>,
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton onClick={handleTogglePassword} edge="end">
-                        {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                <TextField
+                  sx={{ flex: 1 }}
+                  label="Senha"
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  error={!!errors.password}
+                  helperText={errors.password}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start"><LockIcon color="action" /></InputAdornment>,
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton onClick={handleTogglePassword} edge="end">
+                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    )
+                  }}
+                />
+                <Button
+                  variant="outlined"
+                  onClick={handleGeneratePassword}
+                  startIcon={<AutorenewIcon />}
+                  sx={{ mt: 1, whiteSpace: 'nowrap', minWidth: 'auto' }}
+                >
+                  Gerar Senha
+                </Button>
+              </Box>
               <Box sx={{ p: 1.5, bgcolor: 'action.hover', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 1, color: 'text.secondary' }}>
                   Requisitos da Senha:

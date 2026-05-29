@@ -108,10 +108,12 @@ const Layout = ({ children, toggleTheme, mode }) => {
         { text: 'Termos de Uso', icon: <GavelIcon />, path: '/termos' },
       ];
 
-  // Não mostrar sidebar na tela de login, registro ou player de TV
+  // Não mostrar sidebar na tela de login, registro, recuperação de senha ou player de TV
   const isBypassLayout = 
     location.pathname === '/login' || 
     location.pathname === '/' || 
+    location.pathname === '/esqueci-senha' ||
+    location.pathname.startsWith('/redefinir-senha') ||
     location.pathname.startsWith('/tv/player');
 
   if (isBypassLayout) return <>{children}</>;

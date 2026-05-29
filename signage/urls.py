@@ -10,8 +10,10 @@ from .views import (
     RegisterView,
     MeView,
     PlayerLogView,
-    AuditoriaLogViewSet
+    AuditoriaLogViewSet,
+    ResendCredentialsView
 )
+from .views_password_reset import PasswordResetRequestView, ValidateResetTokenView, PasswordResetConfirmView
 
 router = DefaultRouter()
 router.register(r'usuarios', UsuarioViewSet, basename='usuario')
@@ -26,5 +28,9 @@ urlpatterns = [
     path('player/log/', PlayerLogView.as_view(), name='player_log'),
     path('register/', RegisterView.as_view(), name='register'),
     path('me/', MeView.as_view(), name='me'),
+    path('password-reset/request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
+    path('password-reset/validate-token/', ValidateResetTokenView.as_view(), name='password_reset_validate_token'),
+    path('resend-credentials/<int:user_id>/', ResendCredentialsView.as_view(), name='resend_credentials'),
     path('', include(router.urls)),
 ]

@@ -50,3 +50,12 @@ Backend uses `.env` at project root (loaded via `python-dotenv`). Frontend uses 
 - Security headers: XSS filter, nosniff, X-Frame-Options DENY
 - Frontend: auto-logout after 15min idle, secure logout (clears all storage), XSS input sanitization, role-based route protection
 - TV auth: UUID tokens per device, revocable by admin
+
+## Performance Rules
+
+- **NEVER block HTTP responses with I/O operations** (email sending, external API calls, file uploads to third-party services). Always use `threading.Thread(daemon=True)` for fire-and-forget operations or return immediately and process in background.
+- **Email sending MUST be asynchronous**: use background threads. Never call `EmailService` methods synchronously inside a view's request/response cycle.
+- **No `time.sleep()` in the request path**: any retry logic with delays must run in a background thread, never in the main request handler.
+- **Lazy imports for heavy modules**: do not import email service, external SDKs (`resend`, `sendgrid`, etc.) at module level in `views.py`. Use local imports inside the functions that need them.
+- **Do not add `ScopedRateThrottle` to `DEFAULT_THROTTLE_CLASSES`**: declare it only on specific views that need scoped throttling. Global defaults should only include `AnonRateThrottle` and `UserRateThrottle`.
+- **Fail fast on non-transient errors**: retry logic should immediately return on errors like `ImportError`, `ModuleNotFoundError`, `TypeError`, `ValueError` — only retry on network/timeout errors.

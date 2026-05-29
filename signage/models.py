@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.utils import timezone
 import uuid
 
 class Usuario(AbstractUser):
@@ -141,6 +144,9 @@ class AuditoriaLog(models.Model):
         ('CAMPANHA_EXPIRADA', 'Campanha Expirada'),
         ('UPLOAD_VIDEO', 'Upload de Vídeo/Imagem'),
         ('REGISTRO_PARCEIRO', 'Cadastro de Parceiro'),
+        ('EMAIL_CREDENCIAIS', 'Envio de Credenciais por E-mail'),
+        ('EMAIL_CREDENCIAIS_FALHA', 'Falha no Envio de Credenciais'),
+        ('SENHA_REDEFINIDA', 'Redefinição de Senha'),
     )
     usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs_auditoria')
     usuario_str = models.CharField(max_length=150, help_text="Nome de usuário para auditoria")
@@ -181,3 +187,27 @@ class MonitorTV(models.Model):
     def __str__(self):
         status = '✓ Ativo' if self.is_active else '✗ Desativado'
         return f"{self.nome} ({self.localizacao}) [{status}]"
+
+
+class PasswordResetToken(models.Model):
+    """Single-use, time-limited token for password reset."""
+
+    user = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='reset_tokens')
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() > self.created_at + timedelta(minutes=30)
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.is_used and not self.is_expired
+
+    def __str__(self):
+        return f"ResetToken for {self.user.username} (valid={self.is_valid})"

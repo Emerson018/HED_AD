@@ -27,7 +27,9 @@ import {
   DialogActions,
   Button,
   IconButton,
-  Divider
+  Divider,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -40,6 +42,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import EventIcon from '@mui/icons-material/Event';
 import FingerprintIcon from '@mui/icons-material/Fingerprint';
 import SecurityIcon from '@mui/icons-material/Security';
+import SendIcon from '@mui/icons-material/Send';
 
 const SystemLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -57,6 +60,10 @@ const SystemLogs = () => {
   // Dialog de detalhes do Log
   const [selectedLog, setSelectedLog] = useState(null);
 
+  // Reenvio de e-mail
+  const [resending, setResending] = useState(false);
+  const [resendSnackbar, setResendSnackbar] = useState({ open: false, message: '', severity: 'info' });
+
   useEffect(() => {
     fetchLogs();
   }, []);
@@ -72,6 +79,23 @@ const SystemLogs = () => {
       setError('Não foi possível carregar os logs do sistema. Certifique-se de estar autenticado como Administrador.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendEmail = async (userId) => {
+    setResending(true);
+    try {
+      const response = await api.post(`resend-credentials/${userId}/`);
+      if (response.data.email_sent) {
+        setResendSnackbar({ open: true, message: 'E-mail reenviado com sucesso!', severity: 'success' });
+      } else {
+        setResendSnackbar({ open: true, message: 'Falha ao reenviar o e-mail.', severity: 'error' });
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Erro ao reenviar e-mail.';
+      setResendSnackbar({ open: true, message: msg, severity: 'error' });
+    } finally {
+      setResending(false);
     }
   };
 
@@ -461,7 +485,20 @@ const SystemLogs = () => {
                 </Box>
               </DialogContent>
 
-              <DialogActions sx={{ p: 2.5, pt: 0, justifyContent: 'flex-end' }}>
+              <DialogActions sx={{ p: 2.5, pt: 0, justifyContent: 'space-between' }}>
+                {selectedLog.acao === 'REGISTRO_PARCEIRO' && selectedLog.usuario && (
+                  <Button
+                    onClick={() => handleResendEmail(selectedLog.usuario)}
+                    variant="outlined"
+                    color="primary"
+                    startIcon={resending ? <CircularProgress size={18} color="inherit" /> : <SendIcon />}
+                    disabled={resending}
+                    sx={{ borderRadius: 2, fontWeight: 'bold', textTransform: 'none' }}
+                  >
+                    {resending ? 'Enviando...' : 'Reenviar E-mail'}
+                  </Button>
+                )}
+                {selectedLog.acao !== 'REGISTRO_PARCEIRO' && <Box />}
                 <Button onClick={() => setSelectedLog(null)} variant="contained" sx={{ px: 3, borderRadius: 2, fontWeight: 'bold' }}>
                   Fechar
                 </Button>
@@ -470,6 +507,23 @@ const SystemLogs = () => {
           );
         })()}
       </Dialog>
+
+      {/* Snackbar para feedback de reenvio de e-mail */}
+      <Snackbar
+        open={resendSnackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setResendSnackbar({ ...resendSnackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setResendSnackbar({ ...resendSnackbar, open: false })}
+          severity={resendSnackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {resendSnackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
