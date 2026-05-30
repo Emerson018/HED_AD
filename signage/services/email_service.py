@@ -16,6 +16,8 @@ from django.template.loader import render_to_string
 from signage.models import AuditoriaLog, Usuario
 from signage.services.email_adapters import (
     BrevoAdapter,
+    EmailJSAdapter,
+    EmailJSHTTPError,
     EmailProviderAdapter,
     ResendAdapter,
     SendGridAdapter,
@@ -28,6 +30,7 @@ EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 # Supported provider mapping
 PROVIDER_MAP = {
+    "emailjs": EmailJSAdapter,
     "resend": ResendAdapter,
     "sendgrid": SendGridAdapter,
     "brevo": BrevoAdapter,
@@ -144,6 +147,7 @@ class EmailService:
         """
         Send email with up to max_retries attempts, 1s delay between retries.
         Does not retry on non-transient errors (auth, config, import errors).
+        Classifica EmailJSHTTPError por is_retryable para decidir retry.
 
         Args:
             to: Recipient email address.
@@ -178,6 +182,25 @@ class EmailService:
                     str(e),
                 )
                 return False
+            except EmailJSHTTPError as e:
+                if not e.is_retryable:
+                    logger.error(
+                        "Erro HTTP não-recuperável (%d) para %s: %s",
+                        e.status_code,
+                        to,
+                        e.detail,
+                    )
+                    return False
+                # Erro transiente — continua loop de retry
+                logger.warning(
+                    "Erro transiente (%d) ao enviar e-mail para %s, tentativa %d/%d",
+                    e.status_code,
+                    to,
+                    attempt,
+                    max_retries,
+                )
+                if attempt < max_retries:
+                    time.sleep(1)
             except Exception as e:
                 logger.warning(
                     "Falha ao enviar e-mail para %s (tentativa %d/%d): %s",
@@ -200,18 +223,34 @@ class EmailService:
         """
         Resolve provider adapter from EMAIL_PROVIDER setting.
 
+        EmailJS usa construtor diferenciado (service_id, user_id, template IDs).
+        Os demais provedores usam api_key.
+
         Returns:
             An instance of the appropriate EmailProviderAdapter.
 
         Raises:
             ImproperlyConfigured: If the provider is not supported.
         """
-        provider_name = settings.EMAIL_PROVIDER.strip().lower()
+        provider_name = getattr(settings, "EMAIL_PROVIDER", "emailjs").strip().lower()
+
+        # String vazia usa emailjs como padrão
+        if not provider_name:
+            provider_name = "emailjs"
 
         if provider_name not in PROVIDER_MAP:
             raise ImproperlyConfigured(
                 f"Provedor de e-mail '{provider_name}' não é suportado. "
                 f"Provedores disponíveis: {', '.join(PROVIDER_MAP.keys())}"
+            )
+
+        if provider_name == "emailjs":
+            return EmailJSAdapter(
+                service_id=settings.EMAILJS_SERVICE_ID,
+                user_id=settings.EMAILJS_USER_ID,
+                template_credentials_id=settings.EMAILJS_TEMPLATE_CREDENTIALS_ID,
+                template_reset_id=settings.EMAILJS_TEMPLATE_RESET_ID,
+                private_key=getattr(settings, "EMAILJS_PRIVATE_KEY", ""),
             )
 
         adapter_class = PROVIDER_MAP[provider_name]
@@ -226,18 +265,44 @@ class EmailService:
         In production (DEBUG=False): raises ImproperlyConfigured for missing
         or invalid configuration.
 
+        Para EmailJS, valida variáveis específicas (service_id, user_id, template IDs).
+        Para outros provedores, valida EMAIL_API_KEY.
+
         Raises:
             ImproperlyConfigured: In production mode when configuration is invalid.
         """
-        api_key = getattr(settings, "EMAIL_API_KEY", "")
         from_address = getattr(settings, "EMAIL_FROM_ADDRESS", "")
-        provider = getattr(settings, "EMAIL_PROVIDER", "")
+        provider = getattr(settings, "EMAIL_PROVIDER", "emailjs").strip().lower()
+
+        # String vazia usa emailjs como padrão
+        if not provider:
+            provider = "emailjs"
 
         missing_keys = []
-        if not api_key:
-            missing_keys.append("EMAIL_API_KEY")
+
         if not from_address:
             missing_keys.append("EMAIL_FROM_ADDRESS")
+
+        if provider == "emailjs":
+            # Validar variáveis específicas do EmailJS
+            emailjs_vars = {
+                "EMAILJS_SERVICE_ID": getattr(settings, "EMAILJS_SERVICE_ID", ""),
+                "EMAILJS_USER_ID": getattr(settings, "EMAILJS_USER_ID", ""),
+                "EMAILJS_TEMPLATE_CREDENTIALS_ID": getattr(
+                    settings, "EMAILJS_TEMPLATE_CREDENTIALS_ID", ""
+                ),
+                "EMAILJS_TEMPLATE_RESET_ID": getattr(
+                    settings, "EMAILJS_TEMPLATE_RESET_ID", ""
+                ),
+            }
+            for var_name, var_value in emailjs_vars.items():
+                if not var_value or not var_value.strip():
+                    missing_keys.append(var_name)
+        else:
+            # Outros provedores usam EMAIL_API_KEY
+            api_key = getattr(settings, "EMAIL_API_KEY", "")
+            if not api_key:
+                missing_keys.append("EMAIL_API_KEY")
 
         if missing_keys:
             if settings.DEBUG:
@@ -261,10 +326,9 @@ class EmailService:
                 f"EMAIL_FROM_ADDRESS '{from_address}' não é um endereço de e-mail válido."
             )
 
-        # Validate provider
-        provider_name = provider.strip().lower()
-        if provider_name not in PROVIDER_MAP:
+        # Validate provider is in PROVIDER_MAP
+        if provider not in PROVIDER_MAP:
             raise ImproperlyConfigured(
-                f"Provedor de e-mail '{provider_name}' não é suportado. "
+                f"Provedor de e-mail '{provider}' não é suportado. "
                 f"Provedores disponíveis: {', '.join(PROVIDER_MAP.keys())}"
             )

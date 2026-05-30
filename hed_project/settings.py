@@ -277,5 +277,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 EMAIL_API_KEY = os.environ.get('EMAIL_API_KEY', '')
 EMAIL_FROM_ADDRESS = os.environ.get('EMAIL_FROM_ADDRESS', '')
-EMAIL_PROVIDER = os.environ.get('EMAIL_PROVIDER', 'resend')
+EMAIL_PROVIDER = os.environ.get('EMAIL_PROVIDER', 'emailjs')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+
+# EmailJS Configuration
+EMAILJS_SERVICE_ID = os.environ.get('EMAILJS_SERVICE_ID', '')
+EMAILJS_USER_ID = os.environ.get('EMAILJS_USER_ID', '')
+EMAILJS_TEMPLATE_CREDENTIALS_ID = os.environ.get('EMAILJS_TEMPLATE_CREDENTIALS_ID', '')
+EMAILJS_TEMPLATE_RESET_ID = os.environ.get('EMAILJS_TEMPLATE_RESET_ID', '')
+EMAILJS_PRIVATE_KEY = os.environ.get('EMAILJS_PRIVATE_KEY', '')
