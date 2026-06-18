@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Stop on Repeated Errors",
+  "description": "Monitors shell command output after execution. If the same error pattern has appeared more than 4 times, instructs the agent to stop retrying and report the issue to the user instead of continuing.",
+  "version": "1",
+  "when": {
+    "type": "postToolUse",
+    "toolTypes": [
+      "shell"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Check the shell command output. If you notice the same error appearing repeatedly (more than 4 times across recent shell executions), you MUST immediately stop executing code and retrying. Instead, report the error to the user, explain what's failing, and ask how they'd like to proceed. Do NOT attempt another retry if the same error has already occurred 4+ times."
+  }
+}

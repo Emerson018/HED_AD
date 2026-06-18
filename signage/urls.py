@@ -14,6 +14,7 @@ from .views import (
     ResendCredentialsView
 )
 from .views_password_reset import PasswordResetRequestView, ValidateResetTokenView, PasswordResetConfirmView
+from .views_dashboard import DashboardAnalyticsView
 
 router = DefaultRouter()
 router.register(r'usuarios', UsuarioViewSet, basename='usuario')
@@ -32,5 +33,6 @@ urlpatterns = [
     path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('password-reset/validate-token/', ValidateResetTokenView.as_view(), name='password_reset_validate_token'),
     path('resend-credentials/<int:user_id>/', ResendCredentialsView.as_view(), name='resend_credentials'),
+    path('dashboard/analytics/', DashboardAnalyticsView.as_view(), name='dashboard_analytics'),
     path('', include(router.urls)),
 ]

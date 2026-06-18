@@ -12,13 +12,16 @@ import datetime
 logger = logging.getLogger(__name__)
 from .serializers import (
     UsuarioSerializer, 
+    UsuarioDetailSerializer,
+    UsuarioUpdateSerializer,
     ParceiroSerializer, 
     CampanhaSerializer, 
     MidiaSerializer, 
     AgendamentoSerializer,
     AuditoriaLogSerializer
 )
-from .permissions import IsAdminOuDonoDaCampanha
+from .permissions import IsAdminHED, IsAdminOuDonoDaCampanha
+from .pagination import UsuarioPagination
 from django.db.models import Q, Count
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -32,9 +35,118 @@ class MeView(APIView):
 Usuario = get_user_model()
 
 class UsuarioViewSet(viewsets.ModelViewSet):
-    queryset = Usuario.objects.all()
-    serializer_class = UsuarioSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminHED]
+    pagination_class = UsuarioPagination
+    serializer_class = UsuarioDetailSerializer
+
+    def get_queryset(self):
+        return Usuario.objects.filter(
+            tipo_usuario='PARCEIRO'
+        ).select_related('perfil_parceiro').order_by('-perfil_parceiro__criado_em')
+
+    def partial_update(self, request, *args, **kwargs):
+        obj = self.get_object()
+
+        # Validate payload
+        serializer = UsuarioUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {"field_errors": serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = serializer.validated_data
+        email = data.get('email', '')
+        password = data.get('password', '')
+        nome_empresa = data.get('nome_empresa', '')
+        cnpj = data.get('cnpj', '')
+        telefone = data.get('telefone', '')
+
+        # Check email uniqueness (excluding current user)
+        field_errors = {}
+        if Usuario.objects.filter(email=email).exclude(id=obj.id).exists():
+            field_errors['email'] = 'Este e-mail já está em uso.'
+
+        # Check CNPJ uniqueness (excluding current user's parceiro), only if non-empty
+        if cnpj:
+            if Parceiro.objects.filter(cnpj=cnpj).exclude(usuario=obj).exists():
+                field_errors['cnpj'] = 'Este CNPJ já está cadastrado por outro parceiro.'
+
+        if field_errors:
+            return Response(
+                {"field_errors": field_errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Track changed fields for audit log
+        campos_alterados = []
+
+        # Update Usuario fields
+        if obj.email != email:
+            campos_alterados.append('email')
+            obj.email = email
+
+        if password:
+            campos_alterados.append('password')
+            obj.set_password(password)
+
+        obj.save()
+
+        # Update Parceiro fields
+        parceiro = obj.perfil_parceiro
+        if parceiro.nome_empresa != nome_empresa:
+            campos_alterados.append('nome_empresa')
+            parceiro.nome_empresa = nome_empresa
+
+        if parceiro.cnpj != cnpj:
+            campos_alterados.append('cnpj')
+            parceiro.cnpj = cnpj
+
+        if parceiro.telefone != telefone:
+            campos_alterados.append('telefone')
+            parceiro.telefone = telefone
+
+        parceiro.save()
+
+        # Create audit log
+        if campos_alterados:
+            descricao = f"Editou o usuário '{obj.username}'. Campos alterados: {', '.join(campos_alterados)}."
+        else:
+            descricao = f"Editou o usuário '{obj.username}'. Nenhum campo alterado."
+
+        AuditoriaLog.objects.create(
+            usuario=request.user,
+            usuario_str=request.user.username,
+            acao='EDICAO_USUARIO',
+            descricao=descricao,
+        )
+
+        # Return updated data
+        response_serializer = UsuarioDetailSerializer(obj)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)
+
+    def destroy(self, request, *args, **kwargs):
+        obj = self.get_object()
+
+        # Bloquear auto-exclusão
+        if request.user.id == obj.id:
+            return Response(
+                {"error": "Não é possível excluir sua própria conta."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Registrar auditoria antes da exclusão
+        AuditoriaLog.objects.create(
+            usuario=request.user,
+            usuario_str=request.user.username,
+            acao='EXCLUSAO_USUARIO',
+            descricao=f'Usuário {obj.username} removido do sistema'
+        )
+
+        # Deletar usuário (CASCADE remove Parceiro → Campanhas → Mídias)
+        obj.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class ParceiroViewSet(viewsets.ModelViewSet):
     queryset = Parceiro.objects.all()
@@ -347,7 +459,7 @@ class PlayerLogView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class RegisterView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAdminHED]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = 'register'
 
@@ -400,13 +512,21 @@ class RegisterView(APIView):
         if not nome_empresa:
             errors['nome_empresa'] = 'O nome da empresa é obrigatório.'
 
-        # Validação de CNPJ único
+        # Validação de CNPJ (formato e unicidade)
         if cnpj:
             import re
             clean_cnpj = re.sub(r'\D', '', cnpj)
-            # Buscar no banco batendo o valor mascarado ou limpo
-            if Parceiro.objects.filter(Q(cnpj=cnpj) | Q(cnpj=clean_cnpj)).exists():
+            if len(clean_cnpj) != 14:
+                errors['cnpj'] = 'O CNPJ deve conter exatamente 14 dígitos numéricos.'
+            elif Parceiro.objects.filter(Q(cnpj=cnpj) | Q(cnpj=clean_cnpj)).exists():
                 errors['cnpj'] = 'Este CNPJ já está cadastrado por outro parceiro.'
+
+        # Validação de Telefone (formato)
+        if telefone:
+            import re
+            clean_telefone = re.sub(r'\D', '', telefone)
+            if len(clean_telefone) not in (10, 11):
+                errors['telefone'] = 'O telefone deve conter 10 ou 11 dígitos numéricos.'
 
         if errors:
             return Response({"field_errors": errors}, status=status.HTTP_400_BAD_REQUEST)
@@ -428,12 +548,12 @@ class RegisterView(APIView):
                 telefone=telefone
             )
             
-            # Gravar Log de Auditoria
+            # Gravar Log de Auditoria (registra o admin executor, não o usuário criado)
             AuditoriaLog.objects.create(
-                usuario=user,
-                usuario_str=user.username,
+                usuario=request.user,
+                usuario_str=request.user.username,
                 acao='REGISTRO_PARCEIRO',
-                descricao=f"Novo parceiro cadastrado: '{parceiro.nome_empresa}' (ID Usuário: {user.id})."
+                descricao=f"Novo parceiro cadastrado: '{parceiro.nome_empresa}' (usuário: {user.username})."
             )
 
             # 3. Enviar e-mail de credenciais (em background para não bloquear a resposta)

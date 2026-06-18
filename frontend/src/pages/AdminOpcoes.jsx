@@ -47,7 +47,7 @@ const AdminOpcoes = () => {
 
       <Grid container spacing={3}>
         {opcoes.map((opcao) => (
-          <Grid item xs={12} sm={6} key={opcao.title}>
+          <Grid size={6} key={opcao.title}>
             <Card
               sx={{
                 borderRadius: 3,

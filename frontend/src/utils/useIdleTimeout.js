@@ -8,8 +8,9 @@ import { useEffect, useRef, useCallback } from 'react';
  * 
  * @param {function} onIdle - Função executada quando o tempo de inatividade expira
  * @param {number} timeout - Tempo de inatividade em milissegundos (padrão: 15 minutos)
+ * @param {boolean} disabled - Se true, desativa completamente o monitoramento
  */
-const useIdleTimeout = (onIdle, timeout = 15 * 60 * 1000) => {
+const useIdleTimeout = (onIdle, timeout = 15 * 60 * 1000, disabled = false) => {
   const timerRef = useRef(null);
   const onIdleRef = useRef(onIdle);
 
@@ -22,12 +23,23 @@ const useIdleTimeout = (onIdle, timeout = 15 * 60 * 1000) => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
-    timerRef.current = setTimeout(() => {
-      onIdleRef.current();
-    }, timeout);
-  }, [timeout]);
+    if (!disabled) {
+      timerRef.current = setTimeout(() => {
+        onIdleRef.current();
+      }, timeout);
+    }
+  }, [timeout, disabled]);
 
   useEffect(() => {
+    if (disabled) {
+      // Se desativado, limpa qualquer timer existente e não registra listeners
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      return;
+    }
+
     const events = [
       'mousemove',
       'mousedown',
@@ -54,7 +66,7 @@ const useIdleTimeout = (onIdle, timeout = 15 * 60 * 1000) => {
         window.removeEventListener(event, resetTimer);
       });
     };
-  }, [resetTimer]);
+  }, [resetTimer, disabled]);
 };
 
 export default useIdleTimeout;

@@ -105,6 +105,7 @@ const Login = () => {
         ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` 
         : user.username;
       localStorage.setItem('user_name', displayName);
+      localStorage.setItem('user_id', String(user.id));
       
       setSnackbar({ open: true, message: 'Login realizado com sucesso! Redirecionando...', severity: 'success' });
       

@@ -31,7 +31,9 @@ import {
   MenuItem,
   Skeleton,
   Snackbar,
-  Alert
+  Alert,
+  Fade,
+  Grow
 } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -63,6 +65,8 @@ import logoHed from '../assets/logo-hed.png';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
+
+const INVENTORY_SECONDS_PER_SHIFT = 300;
 
 const DIAS_NOMES = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
@@ -475,105 +479,52 @@ const AdminDashboard = () => {
     }
   };
 
-  const kpiCards = useMemo(() => (
-    <Grid container spacing={3} sx={{ mb: 4 }}>
-      <Grid item xs={12} sm={6} md={2.4}>
-        <Card elevation={2} sx={{ 
-          borderRadius: 3,
-          borderLeft: '5px solid',
-          borderColor: 'primary.main'
-        }}>
-          <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-              <Typography variant="body2" color="textSecondary" fontWeight="bold">Total de Campanhas</Typography>
-              <CampaignIcon sx={{ color: 'primary.main' }} />
-            </Stack>
-            {loading ? (
-              <Skeleton variant="text" width={50} height={40} />
-            ) : (
-              <Typography variant="h4" fontWeight="bold" sx={{ color: 'primary.main' }}>{stats.total}</Typography>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} sm={6} md={2.4}>
-        <Card elevation={2} sx={{ 
-          borderRadius: 3,
-          borderLeft: '5px solid',
-          borderColor: 'success.main'
-        }}>
-          <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-              <Typography variant="body2" color="textSecondary" fontWeight="bold">Ativas na TV</Typography>
-              <CheckCircleIcon sx={{ color: 'success.main' }} />
-            </Stack>
-            {loading ? (
-              <Skeleton variant="text" width={50} height={40} />
-            ) : (
-              <Typography variant="h4" fontWeight="bold" sx={{ color: 'success.main' }}>{stats.ativas}</Typography>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} sm={6} md={2.4}>
-        <Card elevation={2} sx={{ 
-          borderRadius: 3,
-          borderLeft: '5px solid',
-          borderColor: 'warning.main'
-        }}>
-          <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-              <Typography variant="body2" color="textSecondary" fontWeight="bold">Pendentes</Typography>
-              <PendingActionsIcon sx={{ color: 'warning.main' }} />
-            </Stack>
-            {loading ? (
-              <Skeleton variant="text" width={50} height={40} />
-            ) : (
-              <Typography variant="h4" fontWeight="bold" sx={{ color: 'warning.main' }}>{stats.pendentes}</Typography>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} sm={6} md={2.4}>
-        <Card elevation={2} sx={{ 
-          borderRadius: 3,
-          borderLeft: '5px solid',
-          borderColor: 'secondary.main'
-        }}>
-          <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-              <Typography variant="body2" color="textSecondary" fontWeight="bold">Parceiros Ativos</Typography>
-              <PeopleIcon sx={{ color: 'secondary.main' }} />
-            </Stack>
-            {loading ? (
-              <Skeleton variant="text" width={50} height={40} />
-            ) : (
-              <Typography variant="h4" fontWeight="bold" sx={{ color: 'secondary.main' }}>{stats.parceiros}</Typography>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
-      <Grid item xs={12} sm={6} md={2.4}>
-        <Card elevation={2} sx={{ 
-          borderRadius: 3,
-          borderLeft: '5px solid',
-          borderColor: 'text.secondary'
-        }}>
-          <CardContent>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-              <Typography variant="body2" color="textSecondary" fontWeight="bold">Expiradas</Typography>
-              <HistoryIcon sx={{ color: 'text.secondary' }} />
-            </Stack>
-            {loading ? (
-              <Skeleton variant="text" width={50} height={40} />
-            ) : (
-              <Typography variant="h4" fontWeight="bold" sx={{ color: 'text.secondary' }}>{stats.expiradas}</Typography>
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
+  const kpiCards = useMemo(() => {
+    const cards = [
+      { label: 'Campanhas', value: stats.total, icon: <CampaignIcon />, color: '#3b82f6' },
+      { label: 'Ativas', value: stats.ativas, icon: <PlayArrowIcon />, color: '#10b981' },
+      { label: 'Pendentes', value: stats.pendentes, icon: <PendingActionsIcon />, color: '#f59e0b' },
+      { label: 'Parceiros', value: stats.parceiros, icon: <PeopleIcon />, color: '#8b5cf6' },
+      { label: 'Expiradas', value: stats.expiradas, icon: <HistoryIcon />, color: '#64748b' },
+    ];
+    return (
+    <Grid container spacing={2} sx={{ mb: 4 }}>
+      {cards.map((kpi, idx) => (
+        <Grid item xs={6} sm={4} md={2.4} key={idx}>
+          <Grow in={!loading} timeout={400 + idx * 150}>
+            <Card elevation={2} sx={{
+              height: 130,
+              borderRadius: 3,
+              transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+              '&:hover': { transform: 'translateY(-5px)', boxShadow: 8 },
+            }}>
+              <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 2, px: 1.5 }}>
+                <Box sx={{
+                  width: 44, height: 44, borderRadius: 2,
+                  bgcolor: `${kpi.color}18`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  mb: 1,
+                  transition: 'transform 0.3s ease',
+                  '&:hover': { transform: 'scale(1.15) rotate(5deg)' },
+                }}>
+                  {React.cloneElement(kpi.icon, { sx: { color: kpi.color, fontSize: 24 } })}
+                </Box>
+                {loading ? (
+                  <Skeleton width={50} height={32} />
+                ) : (
+                  <Typography variant="h4" fontWeight={700} sx={{ color: kpi.color }}>{kpi.value}</Typography>
+                )}
+                <Typography variant="caption" color="text.secondary" textAlign="center" fontWeight={500}>
+                  {kpi.label}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grow>
+        </Grid>
+      ))}
     </Grid>
-  ), [loading, stats]);
+    );
+  }, [loading, stats]);
 
   const filterSection = useMemo(() => (
     <Box sx={{ mb: 3 }}>
@@ -586,7 +537,7 @@ const AdminDashboard = () => {
           size="small"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ width: { xs: '100%', sm: 260 }, bgcolor: 'background.paper' }}
+          sx={{ width: { xs: '100%', sm: 260 }, '& .MuiOutlinedInput-root': { bgcolor: 'background.paper' } }}
         />
         <TextField
           select
@@ -594,7 +545,7 @@ const AdminDashboard = () => {
           label="Tipo"
           value={filterTipo}
           onChange={(e) => setFilterTipo(e.target.value)}
-          sx={{ width: { xs: '100%', sm: 130 }, bgcolor: 'background.paper' }}
+          sx={{ width: { xs: '100%', sm: 130 }, '& .MuiOutlinedInput-root': { bgcolor: 'background.paper' } }}
         >
           <MenuItem value="TODOS">Todos</MenuItem>
           <MenuItem value="APROVADA">Aprovado</MenuItem>
@@ -608,7 +559,7 @@ const AdminDashboard = () => {
           label="Turno"
           value={filterTurno}
           onChange={(e) => setFilterTurno(e.target.value)}
-          sx={{ width: { xs: '100%', sm: 130 }, bgcolor: 'background.paper' }}
+          sx={{ width: { xs: '100%', sm: 130 }, '& .MuiOutlinedInput-root': { bgcolor: 'background.paper' } }}
         >
           <MenuItem value="TODOS">Todos</MenuItem>
           <MenuItem value="INTEGRAL">Integral</MenuItem>
@@ -623,7 +574,7 @@ const AdminDashboard = () => {
           label="Duração"
           value={filterDuracao}
           onChange={(e) => setFilterDuracao(e.target.value)}
-          sx={{ width: { xs: '100%', sm: 110 }, bgcolor: 'background.paper' }}
+          sx={{ width: { xs: '100%', sm: 110 }, '& .MuiOutlinedInput-root': { bgcolor: 'background.paper' } }}
         >
           <MenuItem value="TODAS">Todas</MenuItem>
           <MenuItem value="CURTA">Até 15s</MenuItem>
@@ -1104,8 +1055,7 @@ const AdminDashboard = () => {
               }}
               sx={{ 
                 width: 80, 
-                bgcolor: 'background.paper',
-                '& .MuiOutlinedInput-root': { borderRadius: 2 }
+                '& .MuiOutlinedInput-root': { borderRadius: 2, bgcolor: 'background.paper' }
               }}
             >
               <MenuItem value={10}>10</MenuItem>
@@ -1142,10 +1092,11 @@ const AdminDashboard = () => {
   ]);
 
   return (
+    <Fade in timeout={500}>
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight="bold">Painel de Gestão HED</Typography>
+        <Typography variant="h4" fontWeight="bold">Painel de Gestão</Typography>
         <Typography variant="body2" color="textSecondary">Controle central de anúncios e campanhas</Typography>
       </Box>
 
@@ -1213,9 +1164,9 @@ const AdminDashboard = () => {
             onChange={(e) => setSelectedTv(e.target.value)}
             sx={{ 
               width: { xs: '100%', sm: 240 }, 
-              bgcolor: 'background.paper',
               '& .MuiOutlinedInput-root': {
-                borderRadius: 3
+                borderRadius: 3,
+                bgcolor: 'background.paper'
               }
             }}
           >
@@ -1230,15 +1181,16 @@ const AdminDashboard = () => {
 
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
-          { label: 'Manhã', key: 'MANHA', bg: 'linear-gradient(135deg, #FFF8E1, #FFECB3)', border: '#FFE082', textColor: '#FF8F00', barColor: '#FFB300' },
-          { label: 'Tarde', key: 'TARDE', bg: 'linear-gradient(135deg, #E0F7FA, #B2EBF2)', border: '#80DEEA', textColor: '#00838F', barColor: '#00ACC1' },
-          { label: 'Noite', key: 'NOITE', bg: 'linear-gradient(135deg, #EDE7F6, #D1C4E9)', border: '#B39DDB', textColor: '#6A1B9A', barColor: '#8E24AA' },
-          { label: 'Madrugada', key: 'MADRUGADA', bg: 'linear-gradient(135deg, #ECEFF1, #CFD8DC)', border: '#B0BEC5', textColor: '#37474F', barColor: '#78909C' }
+          { label: 'Manhã', key: 'MANHA' },
+          { label: 'Tarde', key: 'TARDE' },
+          { label: 'Noite', key: 'NOITE' },
+          { label: 'Madrugada', key: 'MADRUGADA' }
         ].map((t) => {
           const shiftData = ocupacaoData[t.key] || { vendido: 0, institucional: 0 };
           const vendido = shiftData.vendido;
           const institucional = shiftData.institucional;
-          const percent = Math.min((vendido / 300) * 100, 100);
+          const percent = Math.min((vendido / INVENTORY_SECONDS_PER_SHIFT) * 100, 100);
+          const barColor = percent > 80 ? '#ef4444' : percent > 50 ? '#f59e0b' : '#10b981';
           
           return (
             <Grid item xs={12} sm={6} md={3} key={t.key}>
@@ -1247,21 +1199,24 @@ const AdminDashboard = () => {
                 sx={{ 
                   p: 2.5, 
                   borderRadius: 4,
-                  background: t.bg,
-                  border: `1px solid ${t.border}`,
+                  bgcolor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
                   cursor: 'pointer',
-                  opacity: loadingOcupacao ? 0.75 : 1
+                  opacity: loadingOcupacao ? 0.75 : 1,
+                  transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+                  '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' }
                 }}
               >
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
-                  <Typography variant="subtitle1" fontWeight="bold" sx={{ color: t.textColor, lineHeight: 1.2 }}>
+                  <Typography variant="subtitle1" fontWeight="bold" sx={{ color: 'text.primary', lineHeight: 1.2 }}>
                     {t.label}
                   </Typography>
                   <Box sx={{ textAlign: 'right' }}>
-                    <Typography variant="caption" fontWeight="bold" sx={{ display: 'block', color: vendido > 300 ? 'error.main' : t.textColor, lineHeight: 1.2 }}>
-                      {vendido}/300s
+                    <Typography variant="caption" fontWeight="bold" sx={{ display: 'block', color: vendido > INVENTORY_SECONDS_PER_SHIFT ? 'error.main' : 'text.primary', lineHeight: 1.2 }}>
+                      {vendido}/{INVENTORY_SECONDS_PER_SHIFT}s
                     </Typography>
-                    <Typography variant="caption" sx={{ display: 'block', color: t.textColor, opacity: 0.85, fontSize: '0.72rem', mt: 0.2 }}>
+                    <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.72rem', mt: 0.2 }}>
                       Inst.: {institucional}s
                     </Typography>
                   </Box>
@@ -1272,8 +1227,8 @@ const AdminDashboard = () => {
                   sx={{ 
                     height: 8, 
                     borderRadius: 5, 
-                    bgcolor: 'rgba(255, 255, 255, 0.4)', 
-                    '& .MuiLinearProgress-bar': { bgcolor: t.barColor } 
+                    bgcolor: 'action.hover', 
+                    '& .MuiLinearProgress-bar': { bgcolor: barColor, borderRadius: 5 } 
                   }} 
                 />
               </Paper>
@@ -1571,6 +1526,7 @@ const AdminDashboard = () => {
         </Alert>
       </Snackbar>
     </Container>
+    </Fade>
   );
 };
 

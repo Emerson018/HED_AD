@@ -40,7 +40,8 @@ import GavelIcon from '@mui/icons-material/Gavel';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import SettingsIcon from '@mui/icons-material/Settings';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import PeopleIcon from '@mui/icons-material/People';
+import BarChartIcon from '@mui/icons-material/BarChart';
 
 const drawerWidth = 270;
 const collapsedWidth = 72;
@@ -83,14 +84,16 @@ const Layout = ({ children, toggleTheme, mode }) => {
     window.location.replace('/login');
   };
 
-  // Auto-logout por inatividade (15 minutos)
-  useIdleTimeout(idleLogout, 15 * 60 * 1000);
+  // Auto-logout por inatividade (15 minutos) - desativado para o player de TV
+  const isPlayerRoute = location.pathname.startsWith('/tv/player');
+  useIdleTimeout(idleLogout, 15 * 60 * 1000, isPlayerRoute);
 
   const mainMenuItems = userRole === 'ADMIN_HED' 
     ? [
-        { text: 'Dashboard Admin', icon: <AdminPanelSettingsIcon />, path: '/admin' },
+        { text: 'Painel de Gestão', icon: <AdminPanelSettingsIcon />, path: '/admin' },
+        { text: 'Dashboard', icon: <BarChartIcon />, path: '/admin/dashboard' },
         { text: 'Campanha Institucional', icon: <LocalHospitalIcon />, path: '/admin/institucional' },
-        { text: 'Novo Usuário', icon: <PersonAddIcon />, path: '/admin/novo-usuario' },
+        { text: 'Usuários', icon: <PeopleIcon />, path: '/admin/usuarios' },
         { text: 'Simulador de TV', icon: <TvIcon />, path: '/admin/preview' },
         { text: 'Logs do Sistema', icon: <HistoryIcon />, path: '/admin/logs' },
       ]

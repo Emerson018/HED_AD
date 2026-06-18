@@ -147,6 +147,8 @@ class AuditoriaLog(models.Model):
         ('EMAIL_CREDENCIAIS', 'Envio de Credenciais por E-mail'),
         ('EMAIL_CREDENCIAIS_FALHA', 'Falha no Envio de Credenciais'),
         ('SENHA_REDEFINIDA', 'Redefinição de Senha'),
+        ('EDICAO_USUARIO', 'Edição de Usuário'),
+        ('EXCLUSAO_USUARIO', 'Exclusão de Usuário'),
     )
     usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name='logs_auditoria')
     usuario_str = models.CharField(max_length=150, help_text="Nome de usuário para auditoria")

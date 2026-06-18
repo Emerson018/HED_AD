@@ -15,9 +15,22 @@ import MinhasCampanhas from './pages/MinhasCampanhas';
 import SystemLogs from './pages/SystemLogs';
 import AdminCampanhaInstitucional from './pages/AdminCampanhaInstitucional';
 import AdminNovoUsuario from './pages/AdminNovoUsuario';
+import AdminUsuarios from './pages/AdminUsuarios';
 import AdminOpcoes from './pages/AdminOpcoes';
 import TermosDeUso from './pages/TermosDeUso';
 import Faq from './pages/Faq';
+
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+
+// Error boundary simples para evitar tela branca
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) return <div style={{ padding: '2rem' }}><h2>Erro ao carregar a página.</h2><p>Tente recarregar.</p></div>;
+    return this.props.children;
+  }
+}
 
 const NotFound = () => <div style={{ padding: '2rem' }}><h2>Página não encontrada</h2></div>;
 
@@ -33,8 +46,9 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Layout toggleTheme={toggleTheme} mode={mode}>
-        <Routes>
+      <ErrorBoundary>
+        <Layout toggleTheme={toggleTheme} mode={mode}>
+          <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/login" element={<Login />} />
           <Route path="/esqueci-senha" element={<EsqueciSenha />} />
@@ -81,12 +95,26 @@ function App() {
             } 
           />
           <Route 
-            path="/admin/novo-usuario" 
+            path="/admin/dashboard" 
             element={
               <ProtectedRoute allowedRoles={['ADMIN_HED']}>
-                <AdminNovoUsuario />
+                <React.Suspense fallback={<div style={{ padding: '2rem' }}>Carregando...</div>}>
+                  <Dashboard />
+                </React.Suspense>
               </ProtectedRoute>
             } 
+          />
+          <Route 
+            path="/admin/usuarios" 
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN_HED']}>
+                <AdminUsuarios />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/novo-usuario" 
+            element={<Navigate to="/admin/usuarios" replace />} 
           />
           <Route 
             path="/parceiro" 
@@ -128,7 +156,8 @@ function App() {
           <Route path="/faq" element={<Faq />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
-      </Layout>
+        </Layout>
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }

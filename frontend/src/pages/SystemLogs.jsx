@@ -29,7 +29,10 @@ import {
   IconButton,
   Divider,
   Snackbar,
-  Alert
+  Alert,
+  Fade,
+  Grow,
+  Skeleton
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
@@ -195,59 +198,41 @@ const SystemLogs = () => {
       </Box>
 
       {/* Grid de Estatísticas */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid', borderColor: 'primary.main' }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="textSecondary" fontWeight="bold">Total de Atividades</Typography>
-                <HistoryIcon sx={{ color: 'primary.main' }} />
-              </Stack>
-              <Typography variant="h4" fontWeight="bold" sx={{ color: 'primary.main' }}>
-                {stats.total}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid', borderColor: 'success.main' }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="textSecondary" fontWeight="bold">Logins Bem Sucedidos</Typography>
-                <CheckCircleIcon sx={{ color: 'success.main' }} />
-              </Stack>
-              <Typography variant="h4" fontWeight="bold" sx={{ color: 'success.main' }}>
-                {stats.successLogins}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid', borderColor: 'error.main' }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="textSecondary" fontWeight="bold">Falhas de Login</Typography>
-                <ErrorIcon sx={{ color: 'error.main' }} />
-              </Stack>
-              <Typography variant="h4" fontWeight="bold" sx={{ color: 'error.main' }}>
-                {stats.failedLogins}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card elevation={2} sx={{ borderRadius: 3, borderLeft: '5px solid', borderColor: 'info.main' }}>
-            <CardContent>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="textSecondary" fontWeight="bold">Novas Campanhas</Typography>
-                <CampaignIcon sx={{ color: 'info.main' }} />
-              </Stack>
-              <Typography variant="h4" fontWeight="bold" sx={{ color: 'info.main' }}>
-                {stats.campaignCreations}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        {[
+          { label: 'Total de Atividades', value: stats.total, icon: <HistoryIcon />, color: '#3b82f6' },
+          { label: 'Logins Sucesso', value: stats.successLogins, icon: <CheckCircleIcon />, color: '#10b981' },
+          { label: 'Falhas de Login', value: stats.failedLogins, icon: <ErrorIcon />, color: '#ef4444' },
+          { label: 'Novas Campanhas', value: stats.campaignCreations, icon: <CampaignIcon />, color: '#06b6d4' },
+        ].map((kpi, idx) => (
+          <Grid item xs={6} sm={6} md={3} key={idx}>
+            <Grow in timeout={400 + idx * 150}>
+              <Card elevation={2} sx={{
+                height: 130,
+                borderRadius: 3,
+                transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+                '&:hover': { transform: 'translateY(-5px)', boxShadow: 8 },
+              }}>
+                <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 2, px: 1.5 }}>
+                  <Box sx={{
+                    width: 44, height: 44, borderRadius: 2,
+                    bgcolor: `${kpi.color}18`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    mb: 1,
+                    transition: 'transform 0.3s ease',
+                    '&:hover': { transform: 'scale(1.15) rotate(5deg)' },
+                  }}>
+                    {React.cloneElement(kpi.icon, { sx: { color: kpi.color, fontSize: 24 } })}
+                  </Box>
+                  <Typography variant="h4" fontWeight={700} sx={{ color: kpi.color }}>{kpi.value}</Typography>
+                  <Typography variant="caption" color="text.secondary" textAlign="center" fontWeight={500}>
+                    {kpi.label}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grow>
+          </Grid>
+        ))}
       </Grid>
 
       {/* Painel de Filtros e Tabela */}

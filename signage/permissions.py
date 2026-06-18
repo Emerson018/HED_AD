@@ -1,5 +1,17 @@
 from rest_framework import permissions
 
+
+class IsAdminHED(permissions.BasePermission):
+    """Permite acesso apenas a usuários ADMIN_HED."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return (
+            user and user.is_authenticated and
+            (user.is_superuser or getattr(user, 'tipo_usuario', None) == 'ADMIN_HED')
+        )
+
+
 class IsAdminOuDonoDaCampanha(permissions.BasePermission):
     """
     Permissão customizada para permitir que o ADMIN_HED edite e veja qualquer campanha,

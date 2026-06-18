@@ -47,6 +47,31 @@ class CampanhaSerializer(serializers.ModelSerializer):
             return obj.num_exibicoes
         return obj.logs.count()
 
+class UsuarioDetailSerializer(serializers.ModelSerializer):
+    nome_empresa = serializers.CharField(source='perfil_parceiro.nome_empresa', read_only=True)
+    cnpj = serializers.CharField(source='perfil_parceiro.cnpj', read_only=True)
+    telefone = serializers.CharField(source='perfil_parceiro.telefone', read_only=True)
+    criado_em = serializers.DateTimeField(source='perfil_parceiro.criado_em', read_only=True)
+    total_campanhas = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Usuario
+        fields = ['id', 'username', 'email', 'tipo_usuario', 'nome_empresa', 'cnpj', 'telefone', 'criado_em', 'total_campanhas']
+
+    def get_total_campanhas(self, obj):
+        if hasattr(obj, 'perfil_parceiro'):
+            return obj.perfil_parceiro.campanhas.count()
+        return 0
+
+
+class UsuarioUpdateSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True)
+    password = serializers.CharField(required=False, allow_blank=True)
+    nome_empresa = serializers.CharField(required=True, min_length=3, max_length=150)
+    cnpj = serializers.CharField(required=False, allow_blank=True)
+    telefone = serializers.CharField(required=False, allow_blank=True)
+
+
 class AuditoriaLogSerializer(serializers.ModelSerializer):
     acao_display = serializers.CharField(source='get_acao_display', read_only=True)
     class Meta:

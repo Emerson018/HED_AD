@@ -92,7 +92,8 @@ cp .env.example .env
 python manage.py migrate
 python manage.py createsuperuser
 
-# Iniciar servidor
+# Iniciar servidor com venv
+.\venv\Scripts\activate
 python manage.py runserver
 ```
 

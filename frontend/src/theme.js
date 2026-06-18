@@ -46,5 +46,16 @@ export const getTheme = (mode) => createTheme({
         },
       },
     },
+    MuiTextField: {
+      styleOverrides: {
+        root: {
+          ...(mode === 'dark' && {
+            '& input[type="date"]::-webkit-calendar-picker-indicator, & input[type="time"]::-webkit-calendar-picker-indicator, & input[type="datetime-local"]::-webkit-calendar-picker-indicator': {
+              filter: 'invert(1)',
+            },
+          }),
+        },
+      },
+    },
   },
 });
