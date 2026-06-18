@@ -104,28 +104,86 @@ class DashboardAnalyticsView(APIView):
             {'name': 'Expiradas', 'value': campanhas_expiradas},
         ]
 
-        # 3. Top parceiros por exibições (bar chart) - only when viewing global
+        # 3. Top parceiros por exibições (bar chart)
+        # Always compute the full ranking so we can show individual position
+        top_parceiros_qs = (
+            CampanhaLog.objects
+            .filter(campanha__is_institucional=False)
+        )
+        if date_from:
+            top_parceiros_qs = top_parceiros_qs.filter(tocado_em__gte=date_from)
+        if date_to:
+            top_parceiros_qs = top_parceiros_qs.filter(tocado_em__lt=date_to)
+
+        top_parceiros_qs = (
+            top_parceiros_qs
+            .values('campanha__parceiro__nome_empresa', 'campanha__parceiro_id')
+            .annotate(total=Count('id'))
+            .order_by('-total')[:10]
+        )
+
         top_parceiros = []
-        if not parceiro_id:
-            top_parceiros_qs = (
+        parceiro_posicao = None
+        for idx, item in enumerate(top_parceiros_qs):
+            entry = {
+                'parceiro': item['campanha__parceiro__nome_empresa'],
+                'exibicoes': item['total'],
+                'parceiro_id': item['campanha__parceiro_id'],
+            }
+            if parceiro_id and str(item['campanha__parceiro_id']) == str(parceiro_id):
+                entry['destacado'] = True
+                parceiro_posicao = idx + 1
+            top_parceiros.append(entry)
+
+        # If a specific parceiro is selected but not in top 10, fetch their data separately
+        if parceiro_id and parceiro_posicao is None:
+            parceiro_individual_qs = (
+                CampanhaLog.objects
+                .filter(
+                    campanha__is_institucional=False,
+                    campanha__parceiro_id=parceiro_id,
+                )
+            )
+            if date_from:
+                parceiro_individual_qs = parceiro_individual_qs.filter(tocado_em__gte=date_from)
+            if date_to:
+                parceiro_individual_qs = parceiro_individual_qs.filter(tocado_em__lt=date_to)
+
+            parceiro_exibicoes = parceiro_individual_qs.count()
+
+            # Calculate actual position by counting how many partners have more exhibitions
+            all_parceiros_count = (
                 CampanhaLog.objects
                 .filter(campanha__is_institucional=False)
             )
             if date_from:
-                top_parceiros_qs = top_parceiros_qs.filter(tocado_em__gte=date_from)
+                all_parceiros_count = all_parceiros_count.filter(tocado_em__gte=date_from)
             if date_to:
-                top_parceiros_qs = top_parceiros_qs.filter(tocado_em__lt=date_to)
+                all_parceiros_count = all_parceiros_count.filter(tocado_em__lt=date_to)
 
-            top_parceiros_qs = (
-                top_parceiros_qs
-                .values('campanha__parceiro__nome_empresa')
+            all_parceiros_count = (
+                all_parceiros_count
+                .values('campanha__parceiro_id')
                 .annotate(total=Count('id'))
-                .order_by('-total')[:10]
+                .filter(total__gt=parceiro_exibicoes)
+                .count()
             )
-            top_parceiros = [
-                {'parceiro': item['campanha__parceiro__nome_empresa'], 'exibicoes': item['total']}
-                for item in top_parceiros_qs
-            ]
+            parceiro_posicao = all_parceiros_count + 1
+
+            # Append the selected partner at the end with their position
+            try:
+                parceiro_obj = Parceiro.objects.get(id=parceiro_id)
+                parceiro_nome = parceiro_obj.nome_empresa
+            except Parceiro.DoesNotExist:
+                parceiro_nome = 'Parceiro'
+
+            top_parceiros.append({
+                'parceiro': parceiro_nome,
+                'exibicoes': parceiro_exibicoes,
+                'parceiro_id': int(parceiro_id),
+                'destacado': True,
+                'posicao': parceiro_posicao,
+            })
 
         # 4. Exibições por turno (bar chart)
         turnos_data = []

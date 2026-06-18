@@ -58,11 +58,14 @@ const RANK_STYLES = [
 ];
 
 // Game-style ranking component for Top 5 Parceiros
-const RankingChart = ({ data, animKey }) => {
-  const top5 = (data || []).slice(0, 5);
+const RankingChart = ({ data, animKey, selectedParceiro }) => {
+  // Separate highlighted partner (appended at end if outside top 5) from the main list
+  const allItems = data || [];
+  const destacadoItem = allItems.find(d => d.destacado && d.posicao);
+  const top5 = allItems.filter(d => !d.posicao).slice(0, 5);
   const maxVal = top5.length > 0 ? Math.max(...top5.map(d => d.exibicoes), 1) : 1;
 
-  if (top5.length === 0) {
+  if (top5.length === 0 && !destacadoItem) {
     return (
       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Typography color="text.secondary" variant="body2">Sem dados de parceiros.</Typography>
@@ -70,91 +73,114 @@ const RankingChart = ({ data, animKey }) => {
     );
   }
 
+  const renderRow = (item, idx, isHighlighted, position) => {
+    const style = RANK_STYLES[Math.min(idx, 4)] || RANK_STYLES[4];
+    const barPercent = (item.exibicoes / maxVal) * 100;
+    return (
+      <Grow in key={`${animKey}-rank-${position || idx}`} timeout={400 + idx * 150}>
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          p: 1,
+          borderRadius: 2,
+          position: 'relative',
+          overflow: 'hidden',
+          transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+          '&:hover': { transform: 'scale(1.02)', boxShadow: style.shadow },
+          ...(isHighlighted && {
+            border: '2px solid',
+            borderColor: 'primary.main',
+            bgcolor: 'action.selected',
+          }),
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            left: 0, top: 0, bottom: 0,
+            width: `${barPercent}%`,
+            background: style.bg,
+            opacity: 0.12,
+            borderRadius: 2,
+            transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
+          },
+        }}>
+          {/* Position badge */}
+          <Box sx={{
+            minWidth: 32, height: 32, borderRadius: '50%',
+            background: style.bg,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: `2px solid ${style.border}`,
+            boxShadow: style.shadow,
+            position: 'relative',
+            zIndex: 1,
+          }}>
+            {idx < 3 && !position ? (
+              <EmojiEventsIcon sx={{ fontSize: 16, color: style.color }} />
+            ) : (
+              <Typography variant="caption" fontWeight={800} sx={{ color: style.color, fontSize: '0.75rem' }}>
+                {position || idx + 1}
+              </Typography>
+            )}
+          </Box>
+
+          {/* Name */}
+          <Box sx={{ flex: 1, position: 'relative', zIndex: 1 }}>
+            <Typography
+              variant="body2"
+              fontWeight={isHighlighted ? 700 : (idx === 0 ? 700 : 500)}
+              noWrap
+              sx={{ fontSize: idx === 0 || isHighlighted ? '0.9rem' : '0.8rem' }}
+            >
+              {item.parceiro}
+            </Typography>
+          </Box>
+
+          {/* Score */}
+          <Box sx={{
+            position: 'relative', zIndex: 1,
+            display: 'flex', alignItems: 'center', gap: 0.5,
+          }}>
+            <Typography
+              variant="body2"
+              fontWeight={700}
+              sx={{
+                fontSize: idx === 0 || isHighlighted ? '1rem' : '0.85rem',
+                background: style.bg,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: idx < 3 && !position ? 'transparent' : undefined,
+                color: (idx >= 3 || position) ? style.border : undefined,
+              }}
+            >
+              {item.exibicoes}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
+              exib.
+            </Typography>
+          </Box>
+        </Box>
+      </Grow>
+    );
+  };
+
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1, mt: 1 }}>
       {top5.map((item, idx) => {
-        const style = RANK_STYLES[idx] || RANK_STYLES[4];
-        const barPercent = (item.exibicoes / maxVal) * 100;
-        return (
-          <Grow in key={`${animKey}-rank-${idx}`} timeout={400 + idx * 150}>
-            <Box sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5,
-              p: 1,
-              borderRadius: 2,
-              position: 'relative',
-              overflow: 'hidden',
-              transition: 'transform 0.25s ease, box-shadow 0.25s ease',
-              '&:hover': { transform: 'scale(1.02)', boxShadow: style.shadow },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                left: 0, top: 0, bottom: 0,
-                width: `${barPercent}%`,
-                background: style.bg,
-                opacity: 0.12,
-                borderRadius: 2,
-                transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
-              },
-            }}>
-              {/* Position badge */}
-              <Box sx={{
-                minWidth: 32, height: 32, borderRadius: '50%',
-                background: style.bg,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: `2px solid ${style.border}`,
-                boxShadow: style.shadow,
-                position: 'relative',
-                zIndex: 1,
-              }}>
-                {idx < 3 ? (
-                  <EmojiEventsIcon sx={{ fontSize: 16, color: style.color }} />
-                ) : (
-                  <Typography variant="caption" fontWeight={800} sx={{ color: style.color, fontSize: '0.75rem' }}>
-                    {idx + 1}
-                  </Typography>
-                )}
-              </Box>
-
-              {/* Name */}
-              <Box sx={{ flex: 1, position: 'relative', zIndex: 1 }}>
-                <Typography
-                  variant="body2"
-                  fontWeight={idx === 0 ? 700 : 500}
-                  noWrap
-                  sx={{ fontSize: idx === 0 ? '0.9rem' : '0.8rem' }}
-                >
-                  {item.parceiro}
-                </Typography>
-              </Box>
-
-              {/* Score */}
-              <Box sx={{
-                position: 'relative', zIndex: 1,
-                display: 'flex', alignItems: 'center', gap: 0.5,
-              }}>
-                <Typography
-                  variant="body2"
-                  fontWeight={700}
-                  sx={{
-                    fontSize: idx === 0 ? '1rem' : '0.85rem',
-                    background: style.bg,
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: idx < 3 ? 'transparent' : undefined,
-                    color: idx >= 3 ? style.border : undefined,
-                  }}
-                >
-                  {item.exibicoes}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>
-                  exib.
-                </Typography>
-              </Box>
-            </Box>
-          </Grow>
-        );
+        const isHighlighted = !!item.destacado;
+        return renderRow(item, idx, isHighlighted, null);
       })}
+      {/* Show selected partner separately if not in top 5 */}
+      {destacadoItem && (
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, my: 0.5 }}>
+            <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
+            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+              Posição do parceiro selecionado
+            </Typography>
+            <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
+          </Box>
+          {renderRow(destacadoItem, destacadoItem.posicao - 1, true, destacadoItem.posicao)}
+        </>
+      )}
     </Box>
   );
 };
@@ -692,9 +718,11 @@ const Dashboard = () => {
                 <EmojiEventsIcon sx={{ color: '#fbbf24', fontSize: 22 }} />
                 <Typography variant="h6" fontWeight={600}>Ranking Parceiros</Typography>
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>Top 5 por exibições no período</Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                {selectedParceiro ? 'Posição individual no ranking' : 'Exibições por período'}
+              </Typography>
               {loading ? <Skeleton variant="rectangular" sx={{ flex: 1 }} /> : (
-                <RankingChart data={charts.top_parceiros} animKey={animKey} />
+                <RankingChart data={charts.top_parceiros} animKey={animKey} selectedParceiro={selectedParceiro} />
               )}
             </Paper>
           </Grid>
