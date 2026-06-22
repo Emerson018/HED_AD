@@ -684,23 +684,24 @@ const Dashboard = () => {
             <Grow in={!loading} timeout={300 + idx * 100}>
               <Card sx={{
                 height: 130,
+                width: '100%',
                 transition: 'transform 0.25s ease, box-shadow 0.25s ease',
                 '&:hover': { transform: 'translateY(-6px)', boxShadow: 8 },
               }}>
-                <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 2, px: 1.5 }}>
+                <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 2, px: 1 }}>
                   <Box sx={{
-                    width: 44, height: 44, borderRadius: 2,
+                    width: 40, height: 40, borderRadius: 2,
                     bgcolor: alpha(kpi.color, 0.1),
                     display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1,
                     transition: 'transform 0.3s ease, background-color 0.3s ease',
                     '&:hover': { transform: 'scale(1.15) rotate(5deg)', bgcolor: alpha(kpi.color, 0.2) },
                   }}>
-                    {React.cloneElement(kpi.icon, { sx: { color: kpi.color, fontSize: 24 } })}
+                    {React.cloneElement(kpi.icon, { sx: { color: kpi.color, fontSize: 22 } })}
                   </Box>
                   {loading ? <Skeleton width={50} height={32} /> : (
                     <Typography variant="h5" fontWeight={700}>{kpi.value ?? 0}</Typography>
                   )}
-                  <Typography variant="caption" color="text.secondary" textAlign="center">{kpi.label}</Typography>
+                  <Typography variant="caption" color="text.secondary" textAlign="center" noWrap>{kpi.label}</Typography>
                 </CardContent>
               </Card>
             </Grow>

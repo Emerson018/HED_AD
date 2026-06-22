@@ -494,27 +494,28 @@ const AdminDashboard = () => {
           <Grow in={!loading} timeout={400 + idx * 150}>
             <Card elevation={2} sx={{
               height: 130,
+              width: '100%',
               borderRadius: 3,
               transition: 'transform 0.25s ease, box-shadow 0.25s ease',
               '&:hover': { transform: 'translateY(-5px)', boxShadow: 8 },
             }}>
-              <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 2, px: 1.5 }}>
+              <CardContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', py: 2, px: 1 }}>
                 <Box sx={{
-                  width: 44, height: 44, borderRadius: 2,
+                  width: 40, height: 40, borderRadius: 2,
                   bgcolor: `${kpi.color}18`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   mb: 1,
                   transition: 'transform 0.3s ease',
                   '&:hover': { transform: 'scale(1.15) rotate(5deg)' },
                 }}>
-                  {React.cloneElement(kpi.icon, { sx: { color: kpi.color, fontSize: 24 } })}
+                  {React.cloneElement(kpi.icon, { sx: { color: kpi.color, fontSize: 22 } })}
                 </Box>
                 {loading ? (
                   <Skeleton width={50} height={32} />
                 ) : (
                   <Typography variant="h4" fontWeight={700} sx={{ color: kpi.color }}>{kpi.value}</Typography>
                 )}
-                <Typography variant="caption" color="text.secondary" textAlign="center" fontWeight={500}>
+                <Typography variant="caption" color="text.secondary" textAlign="center" fontWeight={500} noWrap>
                   {kpi.label}
                 </Typography>
               </CardContent>
