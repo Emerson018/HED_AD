@@ -732,19 +732,27 @@ const AdminDashboard = () => {
                             )}
                           </Box>
                         </Box>
-                        {c.turnos && c.turnos.length > 0 && (
-                          <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-start', minHeight: 28 }}>
+                          {c.turnos && c.turnos.length > 0 && (
                             <Tooltip title={`Turnos: ${formatTurnosFull(c.turnos)}`} arrow>
                               <Box>
                                 {renderTurnosChips(c.turnos, true)}
                               </Box>
                             </Tooltip>
-                          </Box>
-                        )}
+                          )}
+                        </Box>
                       </Box>
 
                       {/* Title */}
-                      <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ lineHeight: 1.3 }}>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ 
+                        lineHeight: 1.3,
+                        minHeight: '2.6em',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
                         {c.nome}
                       </Typography>
 
@@ -754,14 +762,16 @@ const AdminDashboard = () => {
                       </Typography>
 
                       {/* Category */}
-                      {c.categoria && (
-                        <Typography variant="caption" color="textSecondary" sx={{ bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1, display: 'inline-block', mb: 2 }}>
-                          {c.categoria}
-                        </Typography>
-                      )}
+                      <Box sx={{ minHeight: 28, mb: 1 }}>
+                        {c.categoria && (
+                          <Typography variant="caption" color="textSecondary" sx={{ bgcolor: 'action.hover', px: 1, py: 0.5, borderRadius: 1, display: 'inline-block' }}>
+                            {c.categoria}
+                          </Typography>
+                        )}
+                      </Box>
 
                       {/* Details: Dates, Duration, Media Type */}
-                      <Stack spacing={1.5} sx={{ mt: c.categoria ? 0 : 1 }}>
+                      <Stack spacing={1.5}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
                           <CalendarTodayIcon sx={{ fontSize: 16, color: 'primary.main' }} />
                           <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
